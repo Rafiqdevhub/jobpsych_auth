@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { CreatePaymentRequest, PlanType } from "../types/payment";
 
-const VALID_PLANS: PlanType[] = ["pro", "premium"];
+const VALID_PLANS: PlanType[] = ["free", "pro"];
 
 export const validatePlanPaymentRequest = (
   req: Request,
@@ -27,7 +27,7 @@ export const validatePlanPaymentRequest = (
   if (!plan || !VALID_PLANS.includes(plan)) {
     res.status(400).json({
       error: "Validation Error",
-      message: "Plan must be either 'pro' or 'premium'",
+      message: "Plan must be either 'free' or 'pro'",
       valid_plans: VALID_PLANS,
     });
     return;

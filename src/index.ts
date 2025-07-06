@@ -19,14 +19,15 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Welcome to JobPsych Payment Service",
+    message: "Welcome to JobPsych Subscription Service",
     status: "Server is running",
     timestamp: new Date().toISOString(),
     features: [
-      "💳 Simple payment processing for Pro and Premium plans",
+      "🆓 Free plan with up to 2 resume uploads",
+      "💼 Pro plan with unlimited resume uploads ($50/user)",
       "🎯 Focused on two plan types only",
-      "� Secure Stripe integration",
-      "⚡ Streamlined API",
+      "💳 Secure Stripe integration for Pro plan",
+      "⚡ Streamlined API with just two main routes",
     ],
   });
 });
@@ -42,16 +43,20 @@ app.get("/health", (req, res) => {
 
 app.get("/api", (req, res) => {
   res.json({
-    message: "JobPsych Payment API - Simplified for Pro & Premium Plans",
-    version: "2.0.0",
+    message: "JobPsych Payment API - Simplified for Free & Pro Plans",
+    version: "3.0.0",
     endpoints: [
-      "GET /api/plans - Get available plans and pricing",
-      "POST /api/pay - Create payment for pro or premium plan",
-      "GET /api/status/:id - Get payment status by payment ID",
+      "GET /api/ - Home route with available plans and pricing",
+      "POST /api/subscription - Subscribe to free or pro plan",
+      "GET /api/subscription/:id - Get subscription payment status by ID (for pro plan)",
     ],
-    supported_plans: ["pro", "premium"],
+    supported_plans: ["free", "pro"],
+    plan_features: {
+      free: "Up to 2 resume uploads",
+      pro: "Unlimited resume uploads ($50/user)",
+    },
     documentation:
-      "Simplified Stripe-powered payment processing for JobPsych Pro and Premium plans only",
+      "Simplified payment processing for JobPsych subscription plans",
   });
 });
 

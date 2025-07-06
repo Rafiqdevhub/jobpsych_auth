@@ -1,7 +1,7 @@
 {
-  "name": "payment",
+  "name": "subscription-service",
   "version": "1.0.0",
-  "description": "",
+  "description": "JobPsych subscription service with free and pro plans",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",

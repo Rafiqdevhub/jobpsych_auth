@@ -1,14 +1,16 @@
-# JobPsych Payment API Documentation
+# JobPsych Subscription API Documentation
 
 ## Overview
 
-A simplified payment API for JobPsych supporting only **Pro** and **Premium** plans. Built with Express.js, TypeScript, and Stripe integration.
+A simplified subscription API for JobPsych supporting **Free** and **Pro** plans, with resume upload limits. Built with Express.js, TypeScript, and Stripe integration.
 
 ## Features
 
-- 🎯 **Simplified Design**: Only supports Pro ($29.99) and Premium ($49.99) plans
-- 💳 **Secure Payments**: Stripe-powered payment processing
-- ⚡ **Streamlined API**: Minimal endpoints focused on essential functionality
+- � **Free Plan**: Allows up to 2 resume uploads
+- 💼 **Pro Plan**: Unlimited resume uploads for $50 per user
+- �🎯 **Simplified Design**: Only two subscription plans
+- 💳 **Secure Payments**: Stripe-powered payment processing for Pro plan
+- ⚡ **Streamlined API**: Just two main routes - home and subscription
 - 🔒 **Input Validation**: Comprehensive request validation middleware
 - 🌐 **CORS Support**: Ready for frontend integration
 
@@ -606,4 +608,5 @@ For issues or questions about the payment service, check:
 
 **Version**: 2.0.0 - Simplified for Pro & Premium Plans Only  
 **Status**: ✅ Production Ready
+
 # jobpsych_payment

@@ -11,13 +11,13 @@ import {
 
 const router = Router();
 
-// Main payment route - only supports pro and premium plans
-router.post("/pay", validatePlanPaymentRequest, createPlanPayment);
+// Home route for the API - renamed from /plans to /
+router.get("/", getAvailablePlans);
 
-// Get available plans and pricing
-router.get("/plans", getAvailablePlans);
+// Subscription route - handles both free and pro plans
+router.post("/subscription", validatePlanPaymentRequest, createPlanPayment);
 
-// Get payment status
-router.get("/status/:id", validatePaymentId, getPaymentStatus);
+// Payment status checking - kept for tracking pro plan payments
+router.get("/subscription/:id", validatePaymentId, getPaymentStatus);
 
 export default router;

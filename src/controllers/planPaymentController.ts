@@ -10,28 +10,29 @@ import {
 
 // Plan configurations with pricing
 const PLANS: Record<PlanType, PlanConfig> = {
+  free: {
+    name: "JobPsych Free",
+    price: 0,
+    description: "Basic plan with limited features",
+    features: [
+      "Upload up to 2 resumes",
+      "Basic job matching",
+      "Basic career insights",
+    ],
+    resumeLimit: 2,
+  },
   pro: {
     name: "JobPsych Pro",
-    price: 29.99,
-    description: "Professional plan with advanced features",
+    price: 50,
+    description: "Professional plan with unlimited resume uploads",
     features: [
+      "Unlimited resume uploads",
       "Advanced job matching",
       "Detailed personality insights",
       "Career recommendations",
       "Priority support",
     ],
-  },
-  premium: {
-    name: "JobPsych Premium",
-    price: 49.99,
-    description: "Premium plan with all features",
-    features: [
-      "All Pro features",
-      "Expert career coaching",
-      "Custom assessment reports",
-      "1-on-1 consultation",
-      "Premium support",
-    ],
+    resumeLimit: -1, // -1 indicates unlimited
   },
 };
 
@@ -52,12 +53,33 @@ export const createPlanPayment = async (
     if (!planConfig) {
       res.status(400).json({
         error: "Invalid Plan",
-        message: "Plan must be either 'pro' or 'premium'",
+        message: "Plan must be either 'free' or 'pro'",
       });
       return;
     }
 
-    // Convert amount to cents for Stripe
+    // Handle free plan differently - no payment needed
+    if (plan === "free") {
+      const response = {
+        success: true,
+        data: {
+          plan: "free",
+          status: "active",
+          amount: 0,
+          currency: "usd",
+          created: Date.now(),
+          customer_email: customer_email,
+          description: planConfig.description,
+          resumeLimit: planConfig.resumeLimit,
+        },
+        plan_details: planConfig,
+      };
+
+      res.status(200).json(response);
+      return;
+    }
+
+    // For paid plans, convert amount to cents for Stripe
     const amountInCents = Math.round(planConfig.price * 100);
 
     // Create payment intent with plan details
@@ -117,12 +139,13 @@ export const createPlanPayment = async (
   }
 };
 
-// Get available plans
+// Get available plans - This is the home route for the subscription API
 export const getAvailablePlans = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
+    // Enhanced response with more details about resume limits
     res.json({
       success: true,
       data: {
@@ -131,6 +154,29 @@ export const getAvailablePlans = async (
         supported_payment_methods: ["card"],
         publishable_key: process.env.STRIPE_PUBLISHABLE_KEY,
       },
+      plan_comparison: [
+        {
+          feature: "Resume Upload Limit",
+          free: "2 resumes",
+          pro: "Unlimited",
+        },
+        {
+          feature: "Price",
+          free: "Free",
+          pro: "$50 per user",
+        },
+        {
+          feature: "Job Matching",
+          free: "Basic",
+          pro: "Advanced",
+        },
+        {
+          feature: "Support",
+          free: "Standard",
+          pro: "Priority",
+        },
+      ],
+      recommended_plan: "pro",
     });
   } catch (error: any) {
     console.error("Error getting plans:", error);
