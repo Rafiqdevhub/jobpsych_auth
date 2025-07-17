@@ -27,5 +27,5 @@ export const stripe = new Stripe(stripeSecretKey, {
 export const stripeConfig = {
   publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
   currency: "usd",
-  defaultReturnUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+  defaultReturnUrl: process.env.FRONTEND_URL || "http://localhost:5173",
 };
