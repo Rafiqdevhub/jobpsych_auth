@@ -1,18 +1,19 @@
-# JobPsych Subscription API Documentation
+# JobPsych Payment & Subscription API Documentation
 
 ## Overview
 
-A simplified subscription API for JobPsych supporting **Free** and **Pro** plans, with resume upload limits. Built with Express.js, TypeScript, and Stripe integration.
+JobPsych Payment & Subscription API is a modern RESTful service for managing subscription plans, payments, and Stripe integration. It supports Free, Pro, and Premium plans, with secure MongoDB storage for subscriptions and robust validation/error handling.
 
 ## Features
 
-- � **Free Plan**: Allows up to 2 resume uploads
-- 💼 **Pro Plan**: Unlimited resume uploads for $50 per user
-- �🎯 **Simplified Design**: Only two subscription plans
-- 💳 **Secure Payments**: Stripe-powered payment processing for Pro plan
-- ⚡ **Streamlined API**: Just two main routes - home and subscription
-- 🔒 **Input Validation**: Comprehensive request validation middleware
-- 🌐 **CORS Support**: Ready for frontend integration
+- 🆓 **Free Plan**: Up to 2 resume uploads
+- 💼 **Pro Plan**: $50/month, unlimited resume uploads
+- � **Premium Plan**: Contact for pricing and access
+- 💳 **Stripe-powered payment processing**
+- 📦 **MongoDB subscription storage**
+- 🔒 **Input validation & error handling**
+- 🌐 **CORS support for frontend integration**
+- ⚡ **Streamlined endpoints for easy integration**
 
 ## API Endpoints
 
@@ -66,10 +67,26 @@ GET /api/plans
 }
 ```
 
-### 2. Create Payment
+### 1. API Documentation & Plans
 
 ```http
-POST /api/pay
+GET /api
+```
+
+Returns API documentation, available plans, and endpoint descriptions.
+
+### 2. Get Available Plans
+
+```http
+GET /api/
+```
+
+Returns Free, Pro, and Premium plan details, pricing, and features.
+
+### 3. Subscribe to Free or Pro Plan
+
+```http
+POST /api/subscription
 Content-Type: application/json
 ```
 
@@ -77,9 +94,9 @@ Content-Type: application/json
 
 ```json
 {
-  "plan": "pro", // Required: "pro" or "premium"
-  "customer_email": "user@example.com", // Required: valid email
-  "customer_name": "John Doe" // Optional: customer name
+  "plan": "free" | "pro",
+  "customer_email": "user@example.com",
+  "customer_name": "John Doe"
 }
 ```
 
@@ -89,33 +106,169 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "id": "pi_3RgjWOBD8fyBOgMZ1TrI3hjG",
-    "client_secret": "pi_3RgjWOBD8fyBOgMZ1TrI3hjG_secret_...",
-    "status": "requires_payment_method",
     "plan": "pro",
-    "amount": 29.99,
+    "status": "active",
+    "amount": 50,
     "currency": "usd",
-    "created": 1751535216,
     "customer_email": "user@example.com",
-    "description": "JobPsych Pro - Professional plan with advanced features",
-    "metadata": {
-      "created_at": "2025-07-03T09:33:35.680Z",
-      "customer_email": "user@example.com",
-      "customer_name": "John Doe",
-      "plan": "pro",
-      "plan_name": "JobPsych Pro",
-      "plan_price": "29.99",
-      "service": "JobPsych Payment Service"
-    }
+    "description": "Professional plan with unlimited resume uploads",
+    "resumeLimit": -1
   },
   "plan_details": {
     "name": "JobPsych Pro",
-    "price": 29.99,
-    "description": "Professional plan with advanced features",
-    "features": [...]
+    "price": 50,
+    "features": ["Unlimited resume uploads", "Priority support", ...]
   }
 }
 ```
+
+### 4. Get Subscription/Payment Status
+
+```http
+GET /api/subscription/:id
+```
+
+Returns payment/subscription status by Stripe payment intent ID.
+
+### 5. Store Subscription Data in MongoDB
+
+```http
+POST /api/subscription/store
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "user_email": "user@example.com",
+  "user_id": "abc123",
+  "stripe_customer_id": "cus_123",
+  "stripe_subscription_id": "sub_456",
+  "subscription_status": "active",
+  "subscription_end": "2025-12-31T23:59:59.000Z"
+}
+```
+
+**Response (Success):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "_id": "...",
+    "user_email": "user@example.com",
+    "user_id": "abc123",
+    "stripe_customer_id": "cus_123",
+    "stripe_subscription_id": "sub_456",
+    "subscription_status": "active",
+    "subscription_end": "2025-12-31T23:59:59.000Z"
+  }
+}
+```
+
+### 6. Health Check
+
+```http
+GET /health
+```
+
+Returns service status and uptime.
+
+## Error Handling
+
+All errors return structured JSON responses with clear messages and details.
+
+**Validation Error Example:**
+
+```json
+{
+  "error": "Validation Error",
+  "message": "Plan must be either 'free' or 'pro'",
+  "valid_plans": ["free", "pro"]
+}
+```
+
+**Not Found Example:**
+
+```json
+{
+  "error": "Not Found",
+  "message": "Route /api/invalid not found",
+  "available_routes": [
+    "GET /api - API documentation",
+    "GET /api/ - Available plans",
+    "POST /api/subscription - Subscribe to plan",
+    "GET /api/subscription/:id - Payment status",
+    "POST /api/subscription/store - Store subscription",
+    "GET /health - Health check"
+  ]
+}
+```
+
+## Frontend Integration Example
+
+```javascript
+// Subscribe to a plan
+const response = await fetch("http://localhost:5000/api/subscription", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    plan: "pro",
+    customer_email: "user@example.com",
+    customer_name: "John Doe",
+  }),
+});
+const data = await response.json();
+if (data.success) {
+  // Use Stripe client_secret for payment
+}
+```
+
+## Environment Variables
+
+Create a `.env` file:
+
+```env
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+MONGODB_URI=mongodb://localhost:27017/jobpsych
+PORT=5000
+NODE_ENV=development
+```
+
+## Project Structure
+
+```
+src/
+├── index.ts                    # Main server file
+├── routes/
+│   └── planRoutes.ts           # API routes
+├── controllers/
+│   ├── planPaymentController.ts # Payment logic
+│   └── subscriptionStoreController.ts # MongoDB storage
+├── models/
+│   └── subscription.ts         # Subscription schema/model
+├── middleware/
+│   └── planValidation.ts       # Request validation
+│   └── errorHandler.ts         # Async error handler
+├── config/
+│   ├── stripe.ts               # Stripe configuration
+│   └── mongodb.ts              # MongoDB connection
+└── types/
+    └── payment.ts              # TypeScript types
+```
+
+## Quick Start
+
+1. `npm install`
+2. Add your `.env` file
+3. `npm run dev`
+4. Test endpoints with Postman, curl, or your frontend
+
+---
+
+**JobPsych Payment & Subscription API is production-ready for Free, Pro, and Premium plans with Stripe and MongoDB integration!**
 
 ### 3. Get Payment Status
 
@@ -575,26 +728,7 @@ Tests include:
 - **dotenv**: Environment configuration
 - **cors**: Cross-origin requests
 
-## 🚀 Deployment
-
-1. Build the project:
-
-   ```bash
-   npm run build
-   ```
-
-2. Start production server:
-
-   ```bash
-   npm start
-   ```
-
-3. Set production environment variables:
-   ```bash
-   NODE_ENV=production
-   STRIPE_SECRET_KEY=sk_live_...
-   STRIPE_PUBLISHABLE_KEY=pk_live_...
-   ```
+#
 
 ## 📞 Support
 
@@ -608,5 +742,3 @@ For issues or questions about the payment service, check:
 
 **Version**: 2.0.0 - Simplified for Pro & Premium Plans Only  
 **Status**: ✅ Production Ready
-
-# jobpsych_payment
