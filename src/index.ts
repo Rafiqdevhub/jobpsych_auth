@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import planRoutes from "./routes/planRoutes";
 import morgan from "morgan";
+import { connectMongoDB } from "./config/mongodb";
 
 dotenv.config();
 
@@ -22,17 +23,51 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Welcome to JobPsych Subscription Service",
+    api: "JobPsych Payment & Subscription API",
+    description:
+      "A modern RESTful API for managing JobPsych subscription plans, payments, and Stripe integration. Supports Free, Pro, and Premium plans with secure MongoDB storage for subscriptions.",
     status: "Server is running",
     timestamp: new Date().toISOString(),
     features: [
-      "🆓 Free plan with up to 2 resume uploads",
-      "💼 Pro plan: $50/month for unlimited resume uploads",
-      "🌟 Premium plan: Contact us for pricing and access",
-      "🎯 Focused on three plan types: Free, Pro, Premium",
-      "💳 Secure Stripe integration for Pro plan",
-      "⚡ Streamlined API with just three main routes",
+      "🆓 Free plan: Up to 2 resume uploads",
+      "💼 Pro plan: $50/month, unlimited resume uploads",
+      "🌟 Premium plan: Contact for pricing and access",
+      "💳 Stripe-powered payment processing",
+      "📦 MongoDB subscription storage",
+      "🔒 Input validation & error handling",
+      "🌐 CORS support for frontend integration",
+      "⚡ Streamlined endpoints for easy integration",
     ],
+    endpoints: [
+      {
+        method: "GET",
+        path: "/api",
+        description: "API documentation and available plans",
+      },
+      {
+        method: "GET",
+        path: "/api/",
+        description: "Get available plans and pricing",
+      },
+      {
+        method: "POST",
+        path: "/api/subscription",
+        description: "Subscribe to Free or Pro plan",
+      },
+      {
+        method: "GET",
+        path: "/api/subscription/:id",
+        description: "Get subscription/payment status by ID",
+      },
+      {
+        method: "POST",
+        path: "/api/subscription/store",
+        description: "Store subscription data in MongoDB",
+      },
+      { method: "GET", path: "/health", description: "Health check endpoint" },
+    ],
+    documentation:
+      "This API allows you to view plans, create payments, check payment status, and store subscription data securely. Integrate with Stripe for payments and MongoDB for persistent subscription management.",
   });
 });
 
@@ -97,20 +132,27 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(
-    `🚀 JobPsych Payment Service running on http://localhost:${PORT}`
-  );
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 API docs: http://localhost:${PORT}/api`);
-  console.log(
-    `🎯 Simplified API - Free, Pro ($50/month), and Premium (contact us) plans!`
-  );
-  console.log(`💳 Available endpoints:`);
-  console.log(`   GET  /api/plans - View available plans`);
-  console.log(`   POST /api/pay - Create payment for pro`);
-  console.log(`   GET  /api/status/:id - Check payment status`);
-  console.log(`   POST /api/contact - Contact for Premium plan`);
-});
+connectMongoDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(
+        `🚀 JobPsych Payment Service running on http://localhost:${PORT}`
+      );
+      console.log(`📍 Health check: http://localhost:${PORT}/health`);
+      console.log(`🌐 API docs: http://localhost:${PORT}/api`);
+      console.log(
+        `🎯 Simplified API - Free, Pro ($50/month), and Premium (contact us) plans!`
+      );
+      console.log(`💳 Available endpoints:`);
+      console.log(`   GET  /api/plans - View available plans`);
+      console.log(`   POST /api/pay - Create payment for pro`);
+      console.log(`   GET  /api/status/:id - Check payment status`);
+      console.log(`   POST /api/contact - Contact for Premium plan`);
+    });
+  })
+  .catch((error) => {
+    console.error("MongoDB connection error:", error);
+    process.exit(1);
+  });
 
 export default app;
