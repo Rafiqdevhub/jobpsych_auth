@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { stripe } from "../config/stripe";
+import User from "../models/user";
 import {
   CreatePaymentRequest,
   PaymentResponse,
@@ -58,8 +59,43 @@ export const createPlanPayment = async (
       return;
     }
 
+    // Find or create user
+    let user = await User.findOne({ email: customer_email.toLowerCase() });
+    let stripeCustomer;
+
+    if (!user) {
+      // Create Stripe customer first
+      stripeCustomer = await stripe.customers.create({
+        email: customer_email.toLowerCase(),
+        name: customer_name || "",
+        metadata: {
+          source: "JobPsych Subscription",
+          plan: plan,
+          created_at: new Date().toISOString(),
+        },
+      });
+
+      // Create user in MongoDB
+      user = new User({
+        email: customer_email.toLowerCase(),
+        name: customer_name || "",
+        stripe_customer_id: stripeCustomer.id,
+        plan_type: plan,
+        subscription_status: plan === "free" ? "active" : "inactive",
+      });
+      await user.save();
+    } else {
+      // Get existing Stripe customer
+      stripeCustomer = await stripe.customers.retrieve(user.stripe_customer_id);
+    }
+
     // Handle free plan differently - no payment needed
     if (plan === "free") {
+      // Update user plan
+      user.plan_type = "free";
+      user.subscription_status = "active";
+      await user.save();
+
       const response = {
         success: true,
         data: {
@@ -71,6 +107,8 @@ export const createPlanPayment = async (
           customer_email: customer_email,
           description: planConfig.description,
           resumeLimit: planConfig.resumeLimit,
+          user_id: user._id,
+          stripe_customer_id: user.stripe_customer_id,
         },
         plan_details: planConfig,
       };
@@ -86,6 +124,7 @@ export const createPlanPayment = async (
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: "usd",
+      customer: user.stripe_customer_id,
       description: `${planConfig.name} - ${planConfig.description}`,
       receipt_email: customer_email,
       metadata: {
@@ -95,6 +134,7 @@ export const createPlanPayment = async (
         plan_price: planConfig.price.toString(),
         customer_email: customer_email,
         customer_name: customer_name || "",
+        user_id: (user._id as string).toString(),
         service: "JobPsych Payment Service",
         created_at: new Date().toISOString(),
       },
@@ -118,7 +158,11 @@ export const createPlanPayment = async (
 
     res.status(201).json({
       success: true,
-      data: response,
+      data: {
+        ...response,
+        user_id: user._id,
+        stripe_customer_id: user.stripe_customer_id,
+      },
       plan_details: {
         name: planConfig.name,
         price: planConfig.price,

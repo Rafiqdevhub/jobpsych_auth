@@ -28,6 +28,8 @@ export interface PaymentResponse {
   customer_email: string;
   description: string;
   metadata?: Record<string, string>;
+  user_id?: string;
+  stripe_customer_id?: string;
 }
 
 export interface ErrorResponse {

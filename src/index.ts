@@ -2,8 +2,11 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import planRoutes from "./routes/planRoutes";
+import userRoutes from "./routes/userRoutes";
 import morgan from "morgan";
 import { connectMongoDB } from "./config/mongodb";
+import { handleStripeWebhook } from "./controllers/webhookController";
+import { asyncHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
@@ -11,6 +14,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(morgan("dev"));
+
+// Stripe webhook endpoint (before express.json())
+app.post(
+  "/api/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  asyncHandler(handleStripeWebhook)
+);
 
 app.use(
   cors({
@@ -34,7 +44,9 @@ app.get("/", (req, res) => {
       "🌟 Premium plan: Contact for pricing and access",
       "💳 Stripe-powered payment processing",
       "📦 MongoDB subscription storage",
-      "🔒 Input validation & error handling",
+      "� User management with Stripe customers",
+      "🔗 Webhook integration for real-time updates",
+      "�🔒 Input validation & error handling",
       "🌐 CORS support for frontend integration",
       "⚡ Streamlined endpoints for easy integration",
     ],
@@ -63,6 +75,31 @@ app.get("/", (req, res) => {
         method: "POST",
         path: "/api/subscription/store",
         description: "Store subscription data in MongoDB",
+      },
+      {
+        method: "POST",
+        path: "/api/users",
+        description: "Create user with Stripe customer",
+      },
+      {
+        method: "GET",
+        path: "/api/users/:id",
+        description: "Get user by ID",
+      },
+      {
+        method: "GET",
+        path: "/api/users/email/:email",
+        description: "Get user by email",
+      },
+      {
+        method: "PUT",
+        path: "/api/users/:id",
+        description: "Update user information",
+      },
+      {
+        method: "POST",
+        path: "/api/webhooks/stripe",
+        description: "Stripe webhook handler",
       },
       { method: "GET", path: "/health", description: "Health check endpoint" },
     ],
@@ -102,6 +139,7 @@ app.get("/api", (req, res) => {
 });
 
 app.use("/api", planRoutes);
+app.use("/api/users", userRoutes);
 
 app.use(
   (
