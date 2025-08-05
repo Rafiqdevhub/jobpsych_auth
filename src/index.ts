@@ -39,16 +39,16 @@ app.get("/", (req, res) => {
     status: "Server is running",
     timestamp: new Date().toISOString(),
     features: [
-      "🆓 Free plan: Up to 2 resume uploads",
-      "💼 Pro plan: $50/month, unlimited resume uploads",
-      "🌟 Premium plan: Contact for pricing and access",
-      "💳 Stripe-powered payment processing",
-      "📦 MongoDB subscription storage",
-      "� User management with Stripe customers",
-      "🔗 Webhook integration for real-time updates",
-      "�🔒 Input validation & error handling",
-      "🌐 CORS support for frontend integration",
-      "⚡ Streamlined endpoints for easy integration",
+      "Free plan: Up to 2 resume uploads",
+      "Pro plan: $50/month, unlimited resume uploads",
+      "Premium plan: Contact for pricing and access",
+      "Stripe-powered payment processing",
+      "MongoDB subscription storage",
+      "User management with Stripe customers",
+      "Webhook integration for real-time updates",
+      "Input validation & error handling",
+      "CORS support for frontend integration",
+      "Streamlined endpoints for easy integration",
     ],
     endpoints: [
       {
@@ -174,18 +174,8 @@ connectMongoDB()
   .then(() => {
     app.listen(PORT, () => {
       console.log(
-        `🚀 JobPsych Payment Service running on http://localhost:${PORT}`
+        `JobPsych Payment Service running on http://localhost:${PORT}`
       );
-      console.log(`📍 Health check: http://localhost:${PORT}/health`);
-      console.log(`🌐 API docs: http://localhost:${PORT}/api`);
-      console.log(
-        `🎯 Simplified API - Free, Pro ($50/month), and Premium (contact us) plans!`
-      );
-      console.log(`💳 Available endpoints:`);
-      console.log(`   GET  /api/plans - View available plans`);
-      console.log(`   POST /api/pay - Create payment for pro`);
-      console.log(`   GET  /api/status/:id - Check payment status`);
-      console.log(`   POST /api/contact - Contact for Premium plan`);
     });
   })
   .catch((error) => {
