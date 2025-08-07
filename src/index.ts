@@ -15,7 +15,6 @@ const PORT = process.env.PORT || 5000;
 
 app.use(morgan("dev"));
 
-// Stripe webhook endpoint (before express.json())
 app.post(
   "/api/webhooks/stripe",
   express.raw({ type: "application/json" }),
@@ -24,7 +23,7 @@ app.post(
 
 app.use(
   cors({
-    origin: "https://jobpsych.vercel.app",
+    origin: ["http://localhost:5173", "https://jobpsych.vercel.app"],
     credentials: true,
   })
 );
