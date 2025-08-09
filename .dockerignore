@@ -1,0 +1,28 @@
+# Node dependencies and caches
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds and caches
+dist
+build
+coverage
+.nyc_output
+
+# Local env and secrets
+.env
+.env.*
+
+# IDE/editor
+.vscode
+.idea
+*.swp
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db

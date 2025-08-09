@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  payment-api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: jobpsych-payment
+    env_file:
+      - .env
+    environment:
+      # Override or add envs here if needed
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/jobpsych
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    command: ["node", "dist/index.js"]
+
+  mongo:
+    image: mongo:7
+    container_name: jobpsych-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

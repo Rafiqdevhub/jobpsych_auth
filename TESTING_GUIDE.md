@@ -2,7 +2,7 @@
 
 ## 🚀 Base URL
 
-```
+```txt
 http://localhost:5000
 ```
 
@@ -197,7 +197,7 @@ GET http://localhost:5000/api/
 
 ### 7. **Subscribe to Free Plan**
 
-#### POST /api/subscription
+#### POST /api/subscription (Free)
 
 **Description**: Subscribe to free plan (no payment required)
 
@@ -244,7 +244,7 @@ Content-Type: application/json
 
 ### 8. **Subscribe to Pro Plan**
 
-#### POST /api/subscription
+#### POST /api/subscription (Pro)
 
 **Description**: Create payment intent for Pro plan
 
@@ -605,4 +605,124 @@ Import this JSON into Postman for quick testing:
 }
 ```
 
-**Happy Testing! 🚀**
+## Happy Testing! 🚀
+
+---
+
+## 🐳 Run with Docker (Build & Run the Image)
+
+This project includes a production-ready multi-stage Dockerfile and a docker-compose.yml to run the API and MongoDB together.
+
+### Prerequisites
+
+- Docker Desktop installed and running
+- A valid `.env` file at the project root (contains Stripe keys, etc.)
+
+### Option A — Build and run with Docker (single container)
+
+1. Build the image
+
+```powershell
+docker build -t jobpsych-payment:latest -f dockerfile .
+```
+
+1. Run the container (connect to MongoDB on your host)
+
+```powershell
+docker run --name jobpsych-payment `
+  --env-file .env `
+  -e NODE_ENV=production `
+  -e PORT=5000 `
+  -e MONGODB_URI=mongodb://host.docker.internal:27017/jobpsych `
+  -p 5000:5000 `
+  jobpsych-payment:latest
+```
+
+Notes:
+
+- `host.docker.internal` lets the container reach services on your Windows host.
+- Change `MONGODB_URI` if your DB is elsewhere.
+
+1. Verify it’s running
+
+```powershell
+curl http://localhost:5000/health
+curl http://localhost:5000/api
+```
+
+1. Stop and clean up
+
+```powershell
+docker stop jobpsych-payment
+docker rm jobpsych-payment
+```
+
+### Option B — Run API + MongoDB with Docker Compose
+
+This repo contains `docker-compose.yml` that starts MongoDB and the API together.
+
+1. Up (build + start)
+
+```powershell
+docker compose up --build
+```
+
+1. Verify
+
+```powershell
+curl http://localhost:5000/health
+curl http://localhost:5000/api
+```
+
+1. Down (stop and remove)
+
+```powershell
+docker compose down
+```
+
+1. Clean volumes (remove Mongo data)
+
+```powershell
+docker compose down -v
+```
+
+1. Rebuild without cache (if deps changed)
+
+```powershell
+docker compose build --no-cache
+```
+
+Compose details:
+
+- The API service reads `.env` automatically (via `env_file`).
+- `MONGODB_URI` is set to `mongodb://mongo:27017/jobpsych` to talk to the `mongo` service.
+- The API listens on `localhost:5000`.
+
+### Logs & troubleshooting
+
+- Tail logs (single container):
+
+```powershell
+docker logs -f jobpsych-payment
+```
+
+- Tail logs (compose):
+
+```powershell
+docker compose logs -f
+```
+
+- Common issues:
+  - Mongo connection failure: ensure Mongo is reachable; adjust `MONGODB_URI` accordingly.
+  - Missing env vars: confirm `.env` contains `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, (and `STRIPE_WEBHOOK_SECRET` if using webhooks).
+  - Port conflicts: change host port mapping (e.g., `-p 5001:5000`).
+
+### Webhooks (optional)
+
+If you test Stripe webhooks locally, forward events to the container:
+
+```powershell
+stripe listen --forward-to localhost:5000/api/webhooks/stripe
+```
+
+Your API should log webhook handling output when events arrive.
