@@ -1,66 +1,33 @@
-name: Docker Publish
+name: Build and Push to Docker Hub
 
 on:
   push:
-    branches: ["main"]
-    tags:
-      - "v*"
-      - "release-*"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: docker-publish-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/jobpsych-payment
-  DOCKERFILE_PATH: dockerfile
-  CONTEXT_PATH: .
+    branches:
+      - main
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        if: ${{ github.event_name != 'pull_request' }}
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=ref,event=tag
-            type=sha
-          labels: |
-            org.opencontainers.image.source=${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          context: .
+          file: dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/jobpsych-payment:latest
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ env.CONTEXT_PATH }}
-          file: ${{ env.DOCKERFILE_PATH }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+      - name: Logout from Docker Hub
+        run: docker logout
