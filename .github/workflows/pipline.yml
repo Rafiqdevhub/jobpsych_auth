@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/jobpsych-payment
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/jobpsych-payment
   DOCKERFILE_PATH: dockerfile
   CONTEXT_PATH: .
 
