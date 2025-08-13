@@ -1,5 +1,3 @@
-// Simplified Payment Types for Free and Pro Plans Only
-
 export type PlanType = "free" | "pro";
 
 export interface PlanConfig {
@@ -7,7 +5,7 @@ export interface PlanConfig {
   price: number;
   description: string;
   features: string[];
-  resumeLimit?: number; // Maximum number of resumes that can be uploaded
+  resumeLimit?: number;
 }
 
 export interface CreatePaymentRequest {

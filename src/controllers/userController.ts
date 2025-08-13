@@ -2,12 +2,10 @@ import { Request, Response } from "express";
 import { stripe } from "../config/stripe";
 import User from "../models/user";
 
-// Create a new user with Stripe customer
 export const createUser = async (req: Request, res: Response) => {
   try {
     const { email, name } = req.body;
 
-    // Validate input
     if (!email || !name) {
       return res.status(400).json({
         success: false,
@@ -16,7 +14,6 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(409).json({
@@ -30,7 +27,6 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Create Stripe customer
     const stripeCustomer = await stripe.customers.create({
       email: email.toLowerCase(),
       name: name,
@@ -40,7 +36,6 @@ export const createUser = async (req: Request, res: Response) => {
       },
     });
 
-    // Create user in MongoDB
     const user = new User({
       email: email.toLowerCase(),
       name: name,
@@ -74,7 +69,6 @@ export const createUser = async (req: Request, res: Response) => {
   }
 };
 
-// Get user by ID
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -111,7 +105,6 @@ export const getUserById = async (req: Request, res: Response) => {
   }
 };
 
-// Get user by email
 export const getUserByEmail = async (req: Request, res: Response) => {
   try {
     const { email } = req.params;
@@ -148,7 +141,6 @@ export const getUserByEmail = async (req: Request, res: Response) => {
   }
 };
 
-// Update user information
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -163,14 +155,12 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Update fields if provided
     if (name) user.name = name;
     if (plan_type) user.plan_type = plan_type;
     if (subscription_status) user.subscription_status = subscription_status;
 
     await user.save();
 
-    // Also update Stripe customer if name changed
     if (name) {
       await stripe.customers.update(user.stripe_customer_id, {
         name: name,

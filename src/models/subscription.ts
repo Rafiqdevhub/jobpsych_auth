@@ -71,7 +71,6 @@ const SubscriptionSchema: Schema = new Schema({
   },
 });
 
-// Update the updated_at field before saving
 SubscriptionSchema.pre("save", function (next) {
   this.updated_at = new Date();
   next();

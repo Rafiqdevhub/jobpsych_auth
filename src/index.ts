@@ -172,9 +172,7 @@ app.use((req, res) => {
 connectMongoDB()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(
-        `JobPsych Payment Service running on http://localhost:${PORT}`
-      );
+      console.log(`JobPsych running on http://localhost:${PORT}`);
     });
   })
   .catch((error) => {

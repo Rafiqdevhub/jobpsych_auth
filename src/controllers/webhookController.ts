@@ -7,7 +7,6 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
   let event;
 
   try {
-    // Verify webhook signature
     const sig = req.headers["stripe-signature"] as string;
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -27,7 +26,6 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
   }
 
   try {
-    // Handle the event
     switch (event.type) {
       case "customer.subscription.created":
         await handleSubscriptionCreated(event.data.object);
@@ -63,7 +61,6 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
   }
 };
 
-// Handle subscription created
 async function handleSubscriptionCreated(subscription: any) {
   try {
     const user = await User.findOne({
@@ -71,11 +68,9 @@ async function handleSubscriptionCreated(subscription: any) {
     });
 
     if (user) {
-      // Update user status
       user.subscription_status = subscription.status;
       await user.save();
 
-      // Create subscription record
       const subscriptionRecord = new Subscription({
         user_id: user._id,
         user_email: user.email,
@@ -97,7 +92,6 @@ async function handleSubscriptionCreated(subscription: any) {
   }
 }
 
-// Handle subscription updated
 async function handleSubscriptionUpdated(subscription: any) {
   try {
     const user = await User.findOne({
@@ -105,11 +99,9 @@ async function handleSubscriptionUpdated(subscription: any) {
     });
 
     if (user) {
-      // Update user status
       user.subscription_status = subscription.status;
       await user.save();
 
-      // Update subscription record
       await Subscription.findOneAndUpdate(
         { stripe_subscription_id: subscription.id },
         {
@@ -126,7 +118,6 @@ async function handleSubscriptionUpdated(subscription: any) {
   }
 }
 
-// Handle subscription deleted
 async function handleSubscriptionDeleted(subscription: any) {
   try {
     const user = await User.findOne({
@@ -134,12 +125,10 @@ async function handleSubscriptionDeleted(subscription: any) {
     });
 
     if (user) {
-      // Update user to free plan
       user.plan_type = "free";
       user.subscription_status = "canceled";
       await user.save();
 
-      // Update subscription record
       await Subscription.findOneAndUpdate(
         { stripe_subscription_id: subscription.id },
         {
@@ -155,7 +144,6 @@ async function handleSubscriptionDeleted(subscription: any) {
   }
 }
 
-// Handle payment succeeded
 async function handlePaymentSucceeded(invoice: any) {
   try {
     const user = await User.findOne({
@@ -163,7 +151,6 @@ async function handlePaymentSucceeded(invoice: any) {
     });
 
     if (user && invoice.subscription) {
-      // Update subscription status to active
       user.subscription_status = "active";
       await user.save();
 
@@ -182,7 +169,6 @@ async function handlePaymentSucceeded(invoice: any) {
   }
 }
 
-// Handle payment failed
 async function handlePaymentFailed(invoice: any) {
   try {
     const user = await User.findOne({
@@ -190,7 +176,6 @@ async function handlePaymentFailed(invoice: any) {
     });
 
     if (user && invoice.subscription) {
-      // Update subscription status
       user.subscription_status = "past_due";
       await user.save();
 

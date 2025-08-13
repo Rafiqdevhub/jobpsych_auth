@@ -33,7 +33,6 @@ export const storeSubscription = async (req: Request, res: Response) => {
       });
     }
 
-    // Verify user exists
     const user = await User.findById(user_id);
     if (!user) {
       return res.status(404).json({
@@ -43,7 +42,6 @@ export const storeSubscription = async (req: Request, res: Response) => {
       });
     }
 
-    // Create subscription record
     const subscription = new Subscription({
       user_id,
       user_email: user_email.toLowerCase(),
@@ -58,7 +56,6 @@ export const storeSubscription = async (req: Request, res: Response) => {
 
     await subscription.save();
 
-    // Update user's plan and subscription status
     user.plan_type = plan_type;
     user.subscription_status = subscription_status;
     await user.save();

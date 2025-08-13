@@ -8,7 +8,6 @@ export const validatePlanPaymentRequest = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Check if req.body exists and is an object
   if (!req.body || typeof req.body !== "object") {
     res.status(400).json({
       error: "Validation Error",
@@ -23,7 +22,6 @@ export const validatePlanPaymentRequest = (
   const { plan, customer_email, customer_name } =
     req.body as CreatePaymentRequest;
 
-  // Validate plan
   if (!plan || !VALID_PLANS.includes(plan)) {
     res.status(400).json({
       error: "Validation Error",
@@ -33,7 +31,6 @@ export const validatePlanPaymentRequest = (
     return;
   }
 
-  // Validate customer email
   if (!customer_email || !isValidEmail(customer_email)) {
     res.status(400).json({
       error: "Validation Error",
@@ -42,7 +39,6 @@ export const validatePlanPaymentRequest = (
     return;
   }
 
-  // Validate customer name if provided
   if (
     customer_name &&
     (typeof customer_name !== "string" || customer_name.trim().length === 0)
