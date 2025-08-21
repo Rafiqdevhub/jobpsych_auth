@@ -23,7 +23,7 @@ app.post(
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://jobpsych.vercel.app"],
+    origin: ["http://localhost:3000", "https://jobpsych.vercel.app"],
     credentials: true,
   })
 );
