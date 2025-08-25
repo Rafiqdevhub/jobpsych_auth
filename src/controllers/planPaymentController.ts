@@ -9,7 +9,6 @@ import {
   PlanConfig,
 } from "../types/payment";
 
-// Plan configurations with pricing
 const PLANS: Record<PlanType, PlanConfig> = {
   free: {
     name: "JobPsych Free",
@@ -49,7 +48,6 @@ export const createPlanPayment = async (
       metadata = {},
     } = req.body as CreatePaymentRequest;
 
-    // Get plan configuration
     const planConfig = PLANS[plan];
     if (!planConfig) {
       res.status(400).json({
@@ -59,12 +57,10 @@ export const createPlanPayment = async (
       return;
     }
 
-    // Find or create user
     let user = await User.findOne({ email: customer_email.toLowerCase() });
     let stripeCustomer;
 
     if (!user) {
-      // Create Stripe customer first
       stripeCustomer = await stripe.customers.create({
         email: customer_email.toLowerCase(),
         name: customer_name || "",
@@ -75,7 +71,6 @@ export const createPlanPayment = async (
         },
       });
 
-      // Create user in MongoDB
       user = new User({
         email: customer_email.toLowerCase(),
         name: customer_name || "",
@@ -85,13 +80,10 @@ export const createPlanPayment = async (
       });
       await user.save();
     } else {
-      // Get existing Stripe customer
       stripeCustomer = await stripe.customers.retrieve(user.stripe_customer_id);
     }
 
-    // Handle free plan differently - no payment needed
     if (plan === "free") {
-      // Update user plan
       user.plan_type = "free";
       user.subscription_status = "active";
       await user.save();
@@ -117,10 +109,8 @@ export const createPlanPayment = async (
       return;
     }
 
-    // For paid plans, convert amount to cents for Stripe
     const amountInCents = Math.round(planConfig.price * 100);
 
-    // Create payment intent with plan details
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: "usd",
@@ -183,7 +173,6 @@ export const createPlanPayment = async (
   }
 };
 
-// Get available plans - This is the home route for the subscription API
 export const getAvailablePlans = async (
   req: Request,
   res: Response
@@ -235,7 +224,6 @@ export const getAvailablePlans = async (
   }
 };
 
-// Get payment status by ID
 export const getPaymentStatus = async (
   req: Request,
   res: Response
