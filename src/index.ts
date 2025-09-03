@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import planRoutes from "./routes/planRoutes";
 import userRoutes from "./routes/userRoutes";
+import clerkRoutes from "./routes/clerkRoutes";
 import morgan from "morgan";
 import { connectMongoDB } from "./config/mongodb";
 import { handleStripeWebhook } from "./controllers/webhookController";
@@ -15,10 +16,19 @@ const PORT = process.env.PORT || 5000;
 
 app.use(morgan("dev"));
 
+// Webhook endpoints (before express.json())
 app.post(
   "/api/webhooks/stripe",
   express.raw({ type: "application/json" }),
   asyncHandler(handleStripeWebhook)
+);
+
+app.post(
+  "/api/webhooks/clerk",
+  express.raw({ type: "application/json" }),
+  asyncHandler(
+    require("./controllers/clerkWebhookController").handleClerkWebhook
+  )
 );
 
 app.use(
@@ -100,6 +110,11 @@ app.get("/", (req, res) => {
         path: "/api/webhooks/stripe",
         description: "Stripe webhook handler",
       },
+      {
+        method: "POST",
+        path: "/api/webhooks/clerk",
+        description: "Clerk webhook handler for user authentication",
+      },
       { method: "GET", path: "/health", description: "Health check endpoint" },
     ],
     documentation:
@@ -139,6 +154,7 @@ app.get("/api", (req, res) => {
 
 app.use("/api", planRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/clerk", clerkRoutes);
 
 app.use(
   (

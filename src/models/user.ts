@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IUser extends Document {
   email: string;
   name: string;
+  clerk_id: string;
   stripe_customer_id: string;
   plan_type: "free" | "pro" | "premium";
   subscription_status:
@@ -27,6 +28,11 @@ const UserSchema: Schema = new Schema({
     type: String,
     required: true,
     trim: true,
+  },
+  clerk_id: {
+    type: String,
+    required: true,
+    unique: true,
   },
   stripe_customer_id: {
     type: String,

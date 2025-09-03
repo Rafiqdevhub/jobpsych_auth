@@ -4,22 +4,24 @@ import User from "../models/user";
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, name } = req.body;
+    const { email, name, clerk_id } = req.body;
 
-    if (!email || !name) {
+    if (!email || !name || !clerk_id) {
       return res.status(400).json({
         success: false,
         error: "Validation Error",
-        message: "Email and name are required.",
+        message: "Email, name, and clerk_id are required.",
       });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({
+      $or: [{ email: email.toLowerCase() }, { clerk_id: clerk_id }],
+    });
     if (existingUser) {
       return res.status(409).json({
         success: false,
         error: "User Already Exists",
-        message: "A user with this email already exists.",
+        message: "A user with this email or Clerk ID already exists.",
         data: {
           user_id: existingUser._id,
           stripe_customer_id: existingUser.stripe_customer_id,
@@ -31,6 +33,7 @@ export const createUser = async (req: Request, res: Response) => {
       email: email.toLowerCase(),
       name: name,
       metadata: {
+        clerk_id: clerk_id,
         source: "JobPsych API",
         created_at: new Date().toISOString(),
       },
@@ -39,6 +42,7 @@ export const createUser = async (req: Request, res: Response) => {
     const user = new User({
       email: email.toLowerCase(),
       name: name,
+      clerk_id: clerk_id,
       stripe_customer_id: stripeCustomer.id,
       plan_type: "free",
       subscription_status: "inactive",
@@ -53,6 +57,7 @@ export const createUser = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
+        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -88,6 +93,7 @@ export const getUserById = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
+        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -124,6 +130,7 @@ export const getUserByEmail = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
+        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -174,6 +181,7 @@ export const updateUser = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
+        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -186,6 +194,43 @@ export const updateUser = async (req: Request, res: Response) => {
       success: false,
       error: "User Update Failed",
       message: error.message || "Failed to update user",
+    });
+  }
+};
+
+export const getUserByClerkId = async (req: Request, res: Response) => {
+  try {
+    const { clerkId } = req.params;
+
+    const user = await User.findOne({ clerk_id: clerkId });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User Not Found",
+        message: "User with the specified Clerk ID does not exist.",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user_id: user._id,
+        email: user.email,
+        name: user.name,
+        clerk_id: user.clerk_id,
+        stripe_customer_id: user.stripe_customer_id,
+        plan_type: user.plan_type,
+        subscription_status: user.subscription_status,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error getting user by Clerk ID:", error);
+    res.status(500).json({
+      success: false,
+      error: "User Retrieval Failed",
+      message: error.message || "Failed to retrieve user",
     });
   }
 };
