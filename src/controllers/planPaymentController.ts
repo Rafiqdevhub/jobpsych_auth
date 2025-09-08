@@ -80,7 +80,24 @@ export const createPlanPayment = async (
       });
       await user.save();
     } else {
-      stripeCustomer = await stripe.customers.retrieve(user.stripe_customer_id);
+      if (user.stripe_customer_id) {
+        stripeCustomer = await stripe.customers.retrieve(
+          user.stripe_customer_id
+        );
+      } else {
+        // Create new Stripe customer if not exists
+        stripeCustomer = await stripe.customers.create({
+          email: customer_email.toLowerCase(),
+          name: customer_name || "",
+          metadata: {
+            source: "JobPsych Subscription",
+            plan: plan,
+            created_at: new Date().toISOString(),
+          },
+        });
+        user.stripe_customer_id = stripeCustomer.id;
+        await user.save();
+      }
     }
 
     if (plan === "free") {

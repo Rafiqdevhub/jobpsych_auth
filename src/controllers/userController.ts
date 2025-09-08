@@ -4,46 +4,67 @@ import User from "../models/user";
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, name, clerk_id } = req.body;
+    const { email, name, password, user_type } = req.body;
 
-    if (!email || !name || !clerk_id) {
+    if (!email || !name || !password || !user_type) {
       return res.status(400).json({
         success: false,
         error: "Validation Error",
-        message: "Email, name, and clerk_id are required.",
+        message: "Email, name, password, and user_type are required.",
       });
     }
 
-    const existingUser = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, { clerk_id: clerk_id }],
-    });
+    // Validate user_type
+    if (!["candidate", "recruiter"].includes(user_type)) {
+      return res.status(400).json({
+        success: false,
+        error: "Validation Error",
+        message: "User type must be either 'candidate' or 'recruiter'.",
+      });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(409).json({
         success: false,
         error: "User Already Exists",
-        message: "A user with this email or Clerk ID already exists.",
+        message: "A user with this email already exists.",
         data: {
           user_id: existingUser._id,
-          stripe_customer_id: existingUser.stripe_customer_id,
         },
       });
     }
 
-    const stripeCustomer = await stripe.customers.create({
-      email: email.toLowerCase(),
-      name: name,
-      metadata: {
-        clerk_id: clerk_id,
-        source: "JobPsych API",
-        created_at: new Date().toISOString(),
-      },
-    });
+    // Hash password using bcrypt
+    const bcrypt = require("bcrypt");
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create Stripe customer only if needed (optional)
+    let stripeCustomerId = null;
+    try {
+      const stripeCustomer = await stripe.customers.create({
+        email: email.toLowerCase(),
+        name: name,
+        metadata: {
+          user_type: user_type,
+          source: "JobPsych Direct Registration",
+          created_at: new Date().toISOString(),
+        },
+      });
+      stripeCustomerId = stripeCustomer.id;
+    } catch (stripeError: any) {
+      console.log(
+        "Stripe customer creation failed, continuing without it:",
+        stripeError.message
+      );
+    }
 
     const user = new User({
       email: email.toLowerCase(),
       name: name,
-      clerk_id: clerk_id,
-      stripe_customer_id: stripeCustomer.id,
+      password: hashedPassword,
+      user_type: user_type,
+      stripe_customer_id: stripeCustomerId,
       plan_type: "free",
       subscription_status: "inactive",
     });
@@ -57,7 +78,7 @@ export const createUser = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
-        clerk_id: user.clerk_id,
+        user_type: user.user_type,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -93,7 +114,6 @@ export const getUserById = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
-        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -130,7 +150,6 @@ export const getUserByEmail = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
-        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -168,7 +187,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
     await user.save();
 
-    if (name) {
+    if (name && user.stripe_customer_id) {
       await stripe.customers.update(user.stripe_customer_id, {
         name: name,
       });
@@ -181,7 +200,6 @@ export const updateUser = async (req: Request, res: Response) => {
         user_id: user._id,
         email: user.email,
         name: user.name,
-        clerk_id: user.clerk_id,
         stripe_customer_id: user.stripe_customer_id,
         plan_type: user.plan_type,
         subscription_status: user.subscription_status,
@@ -194,43 +212,6 @@ export const updateUser = async (req: Request, res: Response) => {
       success: false,
       error: "User Update Failed",
       message: error.message || "Failed to update user",
-    });
-  }
-};
-
-export const getUserByClerkId = async (req: Request, res: Response) => {
-  try {
-    const { clerkId } = req.params;
-
-    const user = await User.findOne({ clerk_id: clerkId });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: "User Not Found",
-        message: "User with the specified Clerk ID does not exist.",
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        user_id: user._id,
-        email: user.email,
-        name: user.name,
-        clerk_id: user.clerk_id,
-        stripe_customer_id: user.stripe_customer_id,
-        plan_type: user.plan_type,
-        subscription_status: user.subscription_status,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-      },
-    });
-  } catch (error: any) {
-    console.error("Error getting user by Clerk ID:", error);
-    res.status(500).json({
-      success: false,
-      error: "User Retrieval Failed",
-      message: error.message || "Failed to retrieve user",
     });
   }
 };

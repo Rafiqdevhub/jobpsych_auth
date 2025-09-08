@@ -3,16 +3,19 @@ import {
   createUser,
   getUserById,
   getUserByEmail,
-  getUserByClerkId,
   updateUser,
 } from "../controllers/userController";
 import { asyncHandler } from "../middleware/errorHandler";
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
+
+// Public routes
 router.post("/", asyncHandler(createUser));
-router.get("/:id", asyncHandler(getUserById));
-router.get("/email/:email", asyncHandler(getUserByEmail));
-router.get("/clerk/:clerkId", asyncHandler(getUserByClerkId));
-router.put("/:id", asyncHandler(updateUser));
+
+// Protected routes (require authentication)
+router.get("/:id", authenticateToken, asyncHandler(getUserById));
+router.get("/email/:email", authenticateToken, asyncHandler(getUserByEmail));
+router.put("/:id", authenticateToken, asyncHandler(updateUser));
 
 export default router;

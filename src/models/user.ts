@@ -1,10 +1,13 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export type UserType = "candidate" | "recruiter";
+
 export interface IUser extends Document {
   email: string;
   name: string;
-  clerk_id: string;
-  stripe_customer_id: string;
+  password: string;
+  user_type: UserType;
+  stripe_customer_id?: string; // Optional for backward compatibility
   plan_type: "free" | "pro" | "premium";
   subscription_status:
     | "active"
@@ -12,6 +15,7 @@ export interface IUser extends Document {
     | "canceled"
     | "trialing"
     | "past_due";
+  refresh_token?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -29,15 +33,19 @@ const UserSchema: Schema = new Schema({
     required: true,
     trim: true,
   },
-  clerk_id: {
+  password: {
     type: String,
     required: true,
-    unique: true,
+  },
+  user_type: {
+    type: String,
+    enum: ["candidate", "recruiter"],
+    required: true,
   },
   stripe_customer_id: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true, // Allow null values but ensure uniqueness when present
   },
   plan_type: {
     type: String,
@@ -48,6 +56,10 @@ const UserSchema: Schema = new Schema({
     type: String,
     enum: ["active", "inactive", "canceled", "trialing", "past_due"],
     default: "inactive",
+  },
+  refresh_token: {
+    type: String,
+    default: null,
   },
   created_at: {
     type: Date,
