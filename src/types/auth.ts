@@ -16,7 +16,7 @@ export interface AuthResponse {
   success: boolean;
   message: string;
   data?: {
-    user: {
+    user?: {
       id: string;
       name: string;
       email: string;
@@ -28,6 +28,7 @@ export interface AuthResponse {
       access_token: string;
       refresh_token: string;
     };
+    access_token?: string; // For new structure where only access token is sent
   };
   error?: string;
 }

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import User from "../models/user";
+import bcrypt from "bcrypt";
 import {
   validatePassword,
   hashPassword,
@@ -84,8 +85,19 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const tokens = generateTokens(tokenPayload);
 
-    user.refresh_token = tokens.refresh_token;
+    // Hash and store refresh token in database
+    const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, 10);
+    user.refresh_token = hashedRefreshToken;
     await user.save();
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie("refresh_token", tokens.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/api/auth",
+    });
 
     const response: AuthResponse = {
       success: true,
@@ -99,7 +111,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           plan_type: user.plan_type,
           subscription_status: user.subscription_status,
         },
-        tokens,
+        access_token: tokens.access_token,
       },
     };
 
@@ -159,8 +171,19 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     const tokens = generateTokens(tokenPayload);
 
-    user.refresh_token = tokens.refresh_token;
+    // Hash and store refresh token in database
+    const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, 10);
+    user.refresh_token = hashedRefreshToken;
     await user.save();
+
+    // Set refresh token as HttpOnly cookie
+    res.cookie("refresh_token", tokens.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/api/auth",
+    });
 
     const response: AuthResponse = {
       success: true,
@@ -174,7 +197,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           plan_type: user.plan_type,
           subscription_status: user.subscription_status,
         },
-        tokens,
+        access_token: tokens.access_token,
       },
     };
 
@@ -195,22 +218,36 @@ export const refreshToken = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { refresh_token }: RefreshTokenRequest = req.body;
+    const refreshTokenFromCookie = req.cookies.refresh_token;
 
-    if (!refresh_token) {
+    if (!refreshTokenFromCookie) {
       const response: AuthResponse = {
         success: false,
-        message: "Validation Error",
-        error: "Refresh token is required",
+        message: "Authentication Required",
+        error: "Refresh token not found",
       };
-      res.status(400).json(response);
+      res.status(401).json(response);
       return;
     }
 
-    const decoded = verifyRefreshToken(refresh_token);
+    const decoded = verifyRefreshToken(refreshTokenFromCookie);
 
     const user = await User.findById(decoded.userId);
-    if (!user || user.refresh_token !== refresh_token) {
+    if (!user || !user.refresh_token) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Authentication Failed",
+        error: "Invalid refresh token",
+      };
+      res.status(401).json(response);
+      return;
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshTokenFromCookie,
+      user.refresh_token
+    );
+    if (!isRefreshTokenValid) {
       const response: AuthResponse = {
         success: false,
         message: "Authentication Failed",
@@ -228,22 +265,23 @@ export const refreshToken = async (
 
     const tokens = generateTokens(tokenPayload);
 
-    user.refresh_token = tokens.refresh_token;
+    const hashedRefreshToken = await bcrypt.hash(tokens.refresh_token, 10);
+    user.refresh_token = hashedRefreshToken;
     await user.save();
+
+    res.cookie("refresh_token", tokens.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/api/auth",
+    });
 
     const response: AuthResponse = {
       success: true,
       message: "Token refreshed successfully",
       data: {
-        user: {
-          id: (user._id as any).toString(),
-          name: user.name,
-          email: user.email,
-          user_type: user.user_type,
-          plan_type: user.plan_type,
-          subscription_status: user.subscription_status,
-        },
-        tokens,
+        access_token: tokens.access_token,
       },
     };
 
@@ -254,6 +292,45 @@ export const refreshToken = async (
       success: false,
       message: "Token Refresh Failed",
       error: error.message || "An error occurred during token refresh",
+    };
+    res.status(401).json(response);
+  }
+};
+
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const refreshTokenFromCookie = req.cookies.refresh_token;
+
+    if (refreshTokenFromCookie) {
+      try {
+        const decoded = verifyRefreshToken(refreshTokenFromCookie);
+        await User.findByIdAndUpdate(decoded.userId, {
+          $unset: { refresh_token: 1 },
+        });
+      } catch (error) {
+        console.log("Invalid refresh token during logout");
+      }
+    }
+
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth",
+    });
+
+    const response: AuthResponse = {
+      success: true,
+      message: "Logged out successfully",
+    };
+
+    res.status(200).json(response);
+  } catch (error: any) {
+    console.error("Logout error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Logout Failed",
+      error: error.message || "An error occurred during logout",
     };
     res.status(500).json(response);
   }
@@ -311,7 +388,7 @@ export const verifyToken = async (
     const response: AuthResponse = {
       success: false,
       message: "Token Verification Failed",
-      error: error.message || "Invalid token",
+      error: error.message || "Invalid or expired token",
     };
     res.status(401).json(response);
   }

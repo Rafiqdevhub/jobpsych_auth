@@ -4,6 +4,7 @@ import {
   login,
   refreshToken,
   verifyToken,
+  logout,
 } from "../controllers/authController";
 import { asyncHandler } from "../middleware/errorHandler";
 
@@ -13,5 +14,6 @@ router.post("/register", asyncHandler(register));
 router.post("/login", asyncHandler(login));
 router.post("/refresh", asyncHandler(refreshToken));
 router.get("/verify", asyncHandler(verifyToken));
+router.post("/logout", asyncHandler(logout));
 
 export default router;
