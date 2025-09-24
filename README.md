@@ -1,8 +1,8 @@
-# JobPsych Backend API - Implementation Guide
+# JobPsych Backend API - File Counter Implementation Guide
 
 ## 📋 Overview
 
-JobPsych is a secure backend API built with Node.js, Express, TypeScript, and MongoDB that provides authentication and file upload services. The system implements industry-standard security practices with JWT access tokens and HttpOnly refresh tokens.
+JobPsych is a secure backend API built with Node.js, Express, TypeScript, and MongoDB that provides authentication and file counting services. The system implements industry-standard security practices with JWT access tokens and HttpOnly refresh tokens.
 
 ## 🏗 Architecture
 
@@ -13,7 +13,7 @@ JobPsych is a secure backend API built with Node.js, Express, TypeScript, and Mo
 - **Database**: MongoDB with Mongoose ODM
 - **Authentication**: JWT (Access + Refresh Tokens)
 - **Security**: bcrypt password hashing, HttpOnly cookies
-- **File Handling**: Multer for multipart uploads
+- **File Handling**: Multer for multipart file processing (counting only)
 
 ### Security Features
 
@@ -30,10 +30,10 @@ jobpsych_backend/
 ├── src/
 │   ├── config/
 │   │   ├── mongodb.ts          # Database connection
-│   │   └── multer.ts           # File upload configuration
+│   │   └── multer.ts           # File count configuration
 │   ├── controllers/
 │   │   ├── authController.ts   # Authentication logic
-│   │   └── fileController.ts   # File upload logic
+│   │   └── fileController.ts   # File count logic
 │   ├── middleware/
 │   │   └── auth.ts             # JWT authentication middleware
 │   ├── models/
@@ -41,13 +41,13 @@ jobpsych_backend/
 │   │   └── refreshToken.ts     # Refresh token schema
 │   ├── routes/
 │   │   ├── authRoutes.ts       # Auth endpoints
-│   │   └── fileRoutes.ts       # File upload endpoints
+│   │   └── fileRoutes.ts       # File count routes
 │   ├── types/
 │   │   └── auth.ts             # TypeScript interfaces
 │   ├── utils/
 │   │   └── auth.ts             # JWT utilities
 │   └── index.ts                # Main server file
-├── uploads/                    # File storage directory
+├── uploads/                    # Directory not used (files counted only)
 ├── package.json
 ├── tsconfig.json
 └── .env.example
@@ -58,7 +58,7 @@ jobpsych_backend/
 ### 1. Clone and Install
 
 ```bash
-git clone <repository-url>
+git clone
 cd jobpsych_backend
 npm install
 ```
@@ -255,11 +255,11 @@ Authorization: Bearer <access_token>
 }
 ```
 
-#### File Upload Endpoints
+#### File Count Endpoints
 
-##### POST /api/files/upload
+##### POST /api/files/count
 
-Upload a file (authenticated users only).
+Count a file (authenticated users only). Files are processed but not stored.
 
 **Headers:**
 
@@ -286,9 +286,8 @@ file: <uploaded_file>
 ```json
 {
   "success": true,
-  "message": "File uploaded successfully",
+  "message": "File counted successfully",
   "data": {
-    "filename": "file-1695123456789-123456789.pdf",
     "originalName": "resume.pdf",
     "size": 1024000,
     "totalFilesUploaded": 6
@@ -298,7 +297,7 @@ file: <uploaded_file>
 
 ##### GET /api/files/stats
 
-Get user's file upload statistics.
+Get user's file count statistics.
 
 **Headers:**
 
@@ -446,7 +445,7 @@ export const authService = {
 export default api;
 ```
 
-### 3. File Upload Service
+### 3. File Count Service
 
 Create `src/services/fileService.js`:
 
@@ -454,12 +453,12 @@ Create `src/services/fileService.js`:
 import api from "./authService";
 
 export const fileService = {
-  // Upload a file
-  async uploadFile(file) {
+  // Count a file (files are processed but not stored)
+  async countFile(file) {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await api.post("/files/upload", formData, {
+    const response = await api.post("/files/count", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -468,7 +467,7 @@ export const fileService = {
     return response.data.data;
   },
 
-  // Get upload statistics
+  // Get file count statistics
   async getUploadStats() {
     const response = await api.get("/files/stats");
     return response.data.data;
@@ -554,15 +553,15 @@ const Login = () => {
 export default Login;
 ```
 
-#### File Upload Component
+#### File Count Component
 
 ```jsx
 import React, { useState, useEffect } from "react";
 import { fileService } from "../services/fileService";
 
-const FileUpload = () => {
+const FileCount = () => {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [counting, setCounting] = useState(false);
   const [uploadStats, setUploadStats] = useState(null);
   const [error, setError] = useState("");
 
@@ -611,38 +610,38 @@ const FileUpload = () => {
     }
   };
 
-  const handleUpload = async () => {
+  const handleCount = async () => {
     if (!selectedFile) return;
 
-    setUploading(true);
+    setCounting(true);
     setError("");
 
     try {
-      const result = await fileService.uploadFile(selectedFile);
-      console.log("Upload successful:", result);
+      const result = await fileService.countFile(selectedFile);
+      console.log("File counted successfully:", result);
       setSelectedFile(null);
       // Reset file input
       document.getElementById("file-input").value = "";
       // Reload stats
       await loadUploadStats();
     } catch (err) {
-      setError(err.response?.data?.message || "Upload failed");
+      setError(err.response?.data?.message || "File count failed");
     } finally {
-      setUploading(false);
+      setCounting(false);
     }
   };
 
   return (
-    <div className="file-upload-container">
-      <h3>File Upload</h3>
+    <div className="file-count-container">
+      <h3>File Counter</h3>
 
       {uploadStats && (
         <div className="upload-stats">
-          <p>Total files uploaded: {uploadStats.totalFilesUploaded}</p>
+          <p>Total files counted: {uploadStats.totalFilesUploaded}</p>
         </div>
       )}
 
-      <div className="upload-form">
+      <div className="count-form">
         <input
           id="file-input"
           type="file"
@@ -659,15 +658,15 @@ const FileUpload = () => {
 
         {error && <div className="error">{error}</div>}
 
-        <button onClick={handleUpload} disabled={!selectedFile || uploading}>
-          {uploading ? "Uploading..." : "Upload File"}
+        <button onClick={handleCount} disabled={!selectedFile || counting}>
+          {counting ? "Counting..." : "Count File"}
         </button>
       </div>
     </div>
   );
 };
 
-export default FileUpload;
+export default FileCount;
 ```
 
 #### App Component with Authentication
@@ -885,4 +884,4 @@ All API responses follow this structure:
 - `data`: Response payload (null for errors)
 - `error`: Error details (null for success)
 
-This implementation provides a production-ready, secure authentication and file upload system following industry best practices.
+This implementation provides a production-ready, secure authentication and file counting system following industry best practices.
