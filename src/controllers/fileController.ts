@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import User from "../models/user";
 import { AuthResponse } from "../types/auth";
 
-export const uploadFile = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const countFile = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
       const response: AuthResponse = {
@@ -21,8 +18,8 @@ export const uploadFile = async (
     if (!req.file) {
       const response: AuthResponse = {
         success: false,
-        message: "No file uploaded",
-        error: "Please upload a file",
+        message: "No file provided",
+        error: "Please provide a file to count",
       };
       res.status(400).json(response);
       return;
@@ -45,9 +42,8 @@ export const uploadFile = async (
 
     const response: AuthResponse = {
       success: true,
-      message: "File uploaded successfully",
+      message: "File counted successfully",
       data: {
-        filename: req.file.filename,
         originalName: req.file.originalname,
         size: req.file.size,
         totalFilesUploaded: user.filesUploaded,
@@ -55,11 +51,11 @@ export const uploadFile = async (
     };
     res.status(200).json(response);
   } catch (error) {
-    console.error("File upload error:", error);
+    console.error("File counting error:", error);
     const response: AuthResponse = {
       success: false,
       message: "Internal server error",
-      error: "Failed to upload file",
+      error: "Failed to count file",
     };
     res.status(500).json(response);
   }
