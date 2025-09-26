@@ -5,7 +5,6 @@ import { upload } from "../config/multer";
 
 const router = express.Router();
 
-// Protected routes - require authentication
 router.post("/count", authenticate, upload.single("file"), countFile);
 router.get("/stats", authenticate, getUploadStats);
 

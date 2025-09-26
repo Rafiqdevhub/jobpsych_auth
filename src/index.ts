@@ -33,7 +33,7 @@ app.get("/", (req, res) => {
   res.json({
     api: "JobPsych Auth API",
     description:
-      "Authentication system for JobPsych with user registration, login, password reset, and profile management.",
+      "Authentication system for JobPsych with user registration, login, change password, password reset, and profile management.",
     status: "Server is running",
     timestamp: new Date().toISOString(),
     features: [
@@ -74,6 +74,11 @@ app.get("/", (req, res) => {
         method: "POST",
         path: "/api/auth/reset-password",
         description: "Reset user password",
+      },
+      {
+        method: "POST",
+        path: "/api/auth/change-password",
+        description: "Change user password",
       },
       {
         method: "GET",

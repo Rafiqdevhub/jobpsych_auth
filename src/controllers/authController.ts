@@ -15,10 +15,10 @@ import {
   RegisterRequest,
   LoginRequest,
   ResetPasswordRequest,
-  RefreshTokenRequest,
   AuthResponse,
   TokenResponse,
   ProfileResponse,
+  ChangePasswordRequest,
 } from "../types/auth";
 
 const setRefreshTokenCookie = (res: Response, token: string): void => {
@@ -76,7 +76,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     await user.save();
 
-    // Generate tokens
     const accessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
@@ -84,7 +83,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
 
-    // Save refresh token to database
     const refreshTokenDoc = new RefreshToken({
       userId: user._id,
       token: hashedRefreshToken,
@@ -159,7 +157,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate tokens
     const accessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
@@ -167,10 +164,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
 
-    // Remove existing refresh tokens for this user
     await RefreshToken.deleteMany({ userId: user._id });
 
-    // Save new refresh token to database
     const refreshTokenDoc = new RefreshToken({
       userId: user._id,
       token: hashedRefreshToken,
@@ -178,7 +173,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
     await refreshTokenDoc.save();
 
-    // Set refresh token as HttpOnly cookie
     setRefreshTokenCookie(res, refreshToken);
 
     const tokenResponse: TokenResponse = {
@@ -223,7 +217,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Verify refresh token signature
     try {
       verifyRefreshTokenSignature(refreshToken);
     } catch (error) {
@@ -236,7 +229,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Find the hashed refresh token in database
     const storedRefreshToken = await RefreshToken.findOne({
       expiresAt: { $gt: new Date() },
     }).sort({ createdAt: -1 });
@@ -251,7 +243,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Verify the refresh token matches the hashed version
     const isValidToken = await verifyRefreshToken(
       refreshToken,
       storedRefreshToken.token
@@ -266,7 +257,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Get user
     const user = await User.findById(storedRefreshToken.userId);
     if (!user) {
       const response: AuthResponse = {
@@ -278,7 +268,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate new tokens
     const newAccessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
@@ -286,10 +275,8 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     const newRefreshToken = generateRefreshToken();
     const hashedNewRefreshToken = await hashRefreshToken(newRefreshToken);
 
-    // Remove old refresh token
     await RefreshToken.deleteOne({ _id: storedRefreshToken._id });
 
-    // Save new refresh token
     const newRefreshTokenDoc = new RefreshToken({
       userId: user._id,
       token: hashedNewRefreshToken,
@@ -333,7 +320,6 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     const refreshToken = extractRefreshTokenFromCookie(req.cookies);
 
     if (refreshToken) {
-      // Remove refresh token from database
       const storedRefreshToken = await RefreshToken.findOne({
         expiresAt: { $gt: new Date() },
       }).sort({ createdAt: -1 });
@@ -349,7 +335,6 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // Clear the refresh token cookie
     clearRefreshTokenCookie(res);
 
     const response: AuthResponse = {
@@ -463,6 +448,100 @@ export const getProfile = async (
       success: false,
       message: "Internal server error",
       error: "Failed to retrieve profile",
+    };
+    res.status(500).json(response);
+  }
+};
+
+export const changePassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Unauthorized",
+        error: "User not authenticated",
+      };
+      res.status(401).json(response);
+      return;
+    }
+
+    const { currentPassword, newPassword, confirmPassword } =
+      req.body as ChangePasswordRequest;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation error",
+        error: "All password fields are required",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation error",
+        error: "New password and confirm password do not match",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation error",
+        error: "New password must be at least 8 characters long",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      const response: AuthResponse = {
+        success: false,
+        message: "User not found",
+        error: "User does not exist",
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    const isCurrentPasswordValid = await verifyPassword(
+      currentPassword,
+      user.password
+    );
+    if (!isCurrentPasswordValid) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Invalid current password",
+        error: "Current password is incorrect",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const hashedNewPassword = await hashPassword(newPassword);
+
+    user.password = hashedNewPassword;
+    await user.save();
+
+    const response: AuthResponse = {
+      success: true,
+      message: "Password changed successfully",
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Change password error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal server error",
+      error: "Failed to change password",
     };
     res.status(500).json(response);
   }

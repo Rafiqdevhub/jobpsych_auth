@@ -25,8 +25,7 @@ JobPsych is a secure backend API built with Node.js, Express, TypeScript, and Mo
 
 ## 📁 Project Structure
 
-```
-jobpsych_backend/
+```text
 ├── src/
 │   ├── config/
 │   │   ├── mongodb.ts          # Database connection
@@ -252,6 +251,67 @@ Authorization: Bearer <access_token>
     "filesUploaded": 5,
     "createdAt": "2024-01-15T10:30:00.000Z"
   }
+}
+```
+
+##### POST /api/auth/change-password
+
+Change user password (requires current password verification).
+
+**Headers:**
+
+```http
+Authorization: Bearer <access_token>
+```
+
+**Request Body:**
+
+```json
+{
+  "currentPassword": "CurrentSecurePass123!",
+  "newPassword": "NewSecurePass456!",
+  "confirmPassword": "NewSecurePass456!"
+}
+```
+
+**Validation Rules:**
+
+- All fields are required
+- New password must be at least 8 characters long
+- New password and confirm password must match
+- Current password must be correct
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Password changed successfully"
+}
+```
+
+**Error Responses:**
+
+```json
+// Invalid current password
+{
+  "success": false,
+  "message": "Invalid current password",
+  "error": "Current password is incorrect"
+}
+
+// Password mismatch
+{
+  "success": false,
+  "message": "Validation error",
+  "error": "New password and confirm password do not match"
+}
+
+// Weak password
+{
+  "success": false,
+  "message": "Validation error",
+  "error": "New password must be at least 8 characters long"
 }
 ```
 

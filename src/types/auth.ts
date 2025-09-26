@@ -50,3 +50,9 @@ export interface ProfileResponse {
   filesUploaded: number;
   createdAt: string;
 }
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}

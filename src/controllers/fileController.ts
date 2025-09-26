@@ -14,7 +14,6 @@ export const countFile = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check if file was uploaded
     if (!req.file) {
       const response: AuthResponse = {
         success: false,
@@ -25,7 +24,6 @@ export const countFile = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Update user's file upload count
     const user = await User.findById(req.user.userId);
     if (!user) {
       const response: AuthResponse = {
