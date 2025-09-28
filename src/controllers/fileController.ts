@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import User from "../models/user";
 import { AuthResponse } from "../types/auth";
 
 export const countFile = async (req: Request, res: Response): Promise<void> => {
@@ -24,36 +23,20 @@ export const countFile = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      const response: AuthResponse = {
-        success: false,
-        message: "User not found",
-        error: "User does not exist",
-      };
-      res.status(404).json(response);
-      return;
-    }
-
-    user.filesUploaded += 1;
-    await user.save();
-
+    // MongoDB removed - return service unavailable
     const response: AuthResponse = {
-      success: true,
-      message: "File counted successfully",
-      data: {
-        originalName: req.file.originalname,
-        size: req.file.size,
-        totalFilesUploaded: user.filesUploaded,
-      },
+      success: false,
+      message: "Service Unavailable",
+      error:
+        "Database functionality has been removed. File counting is currently unavailable.",
     };
-    res.status(200).json(response);
+    res.status(503).json(response);
   } catch (error) {
     console.error("File counting error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to count file",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during file counting",
     };
     res.status(500).json(response);
   }
@@ -74,36 +57,20 @@ export const getUploadStats = async (
       return;
     }
 
-    const user = await User.findById(req.user.userId);
-    if (!user) {
-      const response: AuthResponse = {
-        success: false,
-        message: "User not found",
-        error: "User does not exist",
-      };
-      res.status(404).json(response);
-      return;
-    }
-
+    // MongoDB removed - return service unavailable
     const response: AuthResponse = {
-      success: true,
-      message: "Upload stats retrieved successfully",
-      data: {
-        totalFilesUploaded: user.filesUploaded,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        },
-      },
+      success: false,
+      message: "Service Unavailable",
+      error:
+        "Database functionality has been removed. Upload stats are currently unavailable.",
     };
-    res.status(200).json(response);
+    res.status(503).json(response);
   } catch (error) {
     console.error("Get upload stats error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to retrieve upload stats",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during stats retrieval",
     };
     res.status(500).json(response);
   }

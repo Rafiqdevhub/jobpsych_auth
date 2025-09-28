@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import User from "../models/user";
-import RefreshToken from "../models/refreshToken";
+import { eq } from "drizzle-orm";
+import { db } from "../db";
+import { users } from "../models/users.model";
 import {
   hashPassword,
   verifyPassword,
@@ -54,8 +55,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    // Check if user already exists
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existingUser.length > 0) {
       const response: AuthResponse = {
         success: false,
         message: "User already exists",
@@ -65,57 +72,70 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Hash password
     const hashedPassword = await hashPassword(password);
 
-    const user = new User({
-      name,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      company_name,
-    });
-
-    await user.save();
-
-    const accessToken = generateAccessToken({
-      userId: user.id,
-      email: user.email,
-    });
+    // Generate refresh token
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
 
-    const refreshTokenDoc = new RefreshToken({
-      userId: user._id,
-      token: hashedRefreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    // Create user
+    const newUser = await db
+      .insert(users)
+      .values({
+        name,
+        email,
+        company_name,
+        password: hashedPassword,
+        refreshToken: hashedRefreshToken,
+      })
+      .returning({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        company_name: users.company_name,
+      });
+
+    if (newUser.length === 0) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Registration failed",
+        error: "Failed to create user account",
+      };
+      res.status(500).json(response);
+      return;
+    }
+
+    // Generate access token
+    const accessToken = generateAccessToken({
+      userId: newUser[0].id.toString(),
+      email: newUser[0].email,
     });
-    await refreshTokenDoc.save();
 
-    // Set refresh token as HttpOnly cookie
+    // Set refresh token cookie
     setRefreshTokenCookie(res, refreshToken);
-
-    const tokenResponse: TokenResponse = {
-      accessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        company_name: user.company_name,
-        filesUploaded: user.filesUploaded,
-      },
-    };
 
     const response: AuthResponse = {
       success: true,
       message: "User registered successfully",
-      data: tokenResponse,
+      data: {
+        accessToken,
+        user: {
+          id: newUser[0].id.toString(),
+          name: newUser[0].name,
+          email: newUser[0].email,
+          company_name: newUser[0].company_name,
+          filesUploaded: 0, // Will be implemented with file upload feature
+        },
+      },
     };
     res.status(201).json(response);
   } catch (error) {
     console.error("Registration error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to register user",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during registration",
     };
     res.status(500).json(response);
   }
@@ -135,69 +155,75 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    // Find user by email
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (userResult.length === 0) {
       const response: AuthResponse = {
         success: false,
         message: "Invalid credentials",
-        error: "User not found",
+        error: "Invalid email or password",
       };
       res.status(401).json(response);
       return;
     }
 
+    const user = userResult[0];
+
+    // Verify password
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
       const response: AuthResponse = {
         success: false,
         message: "Invalid credentials",
-        error: "Incorrect password",
+        error: "Invalid email or password",
       };
       res.status(401).json(response);
       return;
     }
 
+    // Generate new tokens
     const accessToken = generateAccessToken({
-      userId: user.id,
+      userId: user.id.toString(),
       email: user.email,
     });
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
 
-    await RefreshToken.deleteMany({ userId: user._id });
+    // Update refresh token in database
+    await db
+      .update(users)
+      .set({ refreshToken: hashedRefreshToken })
+      .where(eq(users.id, user.id));
 
-    const refreshTokenDoc = new RefreshToken({
-      userId: user._id,
-      token: hashedRefreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    });
-    await refreshTokenDoc.save();
-
+    // Set refresh token cookie
     setRefreshTokenCookie(res, refreshToken);
-
-    const tokenResponse: TokenResponse = {
-      accessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        company_name: user.company_name,
-        filesUploaded: user.filesUploaded,
-      },
-    };
 
     const response: AuthResponse = {
       success: true,
       message: "Login successful",
-      data: tokenResponse,
+      data: {
+        accessToken,
+        user: {
+          id: user.id.toString(),
+          name: user.name,
+          email: user.email,
+          company_name: user.company_name,
+          filesUploaded: 0, // Will be implemented with file upload feature
+        },
+      },
     };
     res.status(200).json(response);
   } catch (error) {
     console.error("Login error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to login",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during login",
     };
     res.status(500).json(response);
   }
@@ -210,106 +236,102 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     if (!refreshToken) {
       const response: AuthResponse = {
         success: false,
-        message: "Refresh token is required",
+        message: "Refresh token required",
         error: "No refresh token provided",
       };
       res.status(401).json(response);
       return;
     }
 
+    // Verify refresh token signature
+    let decoded;
     try {
-      verifyRefreshTokenSignature(refreshToken);
+      decoded = verifyRefreshTokenSignature(refreshToken);
     } catch (error) {
       const response: AuthResponse = {
         success: false,
         message: "Invalid refresh token",
-        error: "Refresh token signature verification failed",
+        error: "Refresh token is invalid or expired",
       };
       res.status(401).json(response);
       return;
     }
 
-    const storedRefreshToken = await RefreshToken.findOne({
-      expiresAt: { $gt: new Date() },
-    }).sort({ createdAt: -1 });
+    // Find user with matching refresh token
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, decoded.email))
+      .limit(1);
 
-    if (!storedRefreshToken) {
-      const response: AuthResponse = {
-        success: false,
-        message: "Refresh token expired or not found",
-        error: "Token not found in database",
-      };
-      res.status(401).json(response);
-      return;
-    }
-
-    const isValidToken = await verifyRefreshToken(
-      refreshToken,
-      storedRefreshToken.token
-    );
-    if (!isValidToken) {
+    if (userResult.length === 0) {
       const response: AuthResponse = {
         success: false,
         message: "Invalid refresh token",
-        error: "Token verification failed",
+        error: "User not found",
       };
       res.status(401).json(response);
       return;
     }
 
-    const user = await User.findById(storedRefreshToken.userId);
-    if (!user) {
+    const user = userResult[0];
+
+    // Verify refresh token hash
+    if (!user.refreshToken) {
       const response: AuthResponse = {
         success: false,
-        message: "User not found",
-        error: "Associated user not found",
+        message: "Invalid refresh token",
+        error: "No stored refresh token",
       };
       res.status(401).json(response);
       return;
     }
 
+    const isRefreshTokenValid = await verifyRefreshToken(
+      refreshToken,
+      user.refreshToken
+    );
+    if (!isRefreshTokenValid) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Invalid refresh token",
+        error: "Refresh token does not match stored token",
+      };
+      res.status(401).json(response);
+      return;
+    }
+
+    // Generate new tokens
     const newAccessToken = generateAccessToken({
-      userId: user.id,
+      userId: user.id.toString(),
       email: user.email,
     });
     const newRefreshToken = generateRefreshToken();
     const hashedNewRefreshToken = await hashRefreshToken(newRefreshToken);
 
-    await RefreshToken.deleteOne({ _id: storedRefreshToken._id });
-
-    const newRefreshTokenDoc = new RefreshToken({
-      userId: user._id,
-      token: hashedNewRefreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    });
-    await newRefreshTokenDoc.save();
+    // Update refresh token in database
+    await db
+      .update(users)
+      .set({ refreshToken: hashedNewRefreshToken })
+      .where(eq(users.id, user.id));
 
     // Set new refresh token cookie
     setRefreshTokenCookie(res, newRefreshToken);
 
-    const tokenResponse: TokenResponse = {
-      accessToken: newAccessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        company_name: user.company_name,
-        filesUploaded: user.filesUploaded,
-      },
-    };
-
     const response: AuthResponse = {
       success: true,
       message: "Token refreshed successfully",
-      data: tokenResponse,
+      data: {
+        accessToken: newAccessToken,
+      },
     };
     res.status(200).json(response);
   } catch (error) {
     console.error("Refresh token error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to refresh token",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during token refresh",
     };
     res.status(500).json(response);
   }
@@ -319,22 +341,29 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
     const refreshToken = extractRefreshTokenFromCookie(req.cookies);
 
+    // Clear refresh token from database if it exists
     if (refreshToken) {
-      const storedRefreshToken = await RefreshToken.findOne({
-        expiresAt: { $gt: new Date() },
-      }).sort({ createdAt: -1 });
+      try {
+        // Find user by refresh token and clear it
+        const userResult = await db
+          .select()
+          .from(users)
+          .where(eq(users.refreshToken, await hashRefreshToken(refreshToken)))
+          .limit(1);
 
-      if (storedRefreshToken) {
-        const isValidToken = await verifyRefreshToken(
-          refreshToken,
-          storedRefreshToken.token
-        );
-        if (isValidToken) {
-          await RefreshToken.deleteOne({ _id: storedRefreshToken._id });
+        if (userResult.length > 0) {
+          await db
+            .update(users)
+            .set({ refreshToken: null })
+            .where(eq(users.id, userResult[0].id));
         }
+      } catch (error) {
+        // Log error but don't fail logout
+        console.error("Error clearing refresh token from database:", error);
       }
     }
 
+    // Clear refresh token cookie
     clearRefreshTokenCookie(res);
 
     const response: AuthResponse = {
@@ -346,8 +375,8 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     console.error("Logout error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to logout",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during logout",
     };
     res.status(500).json(response);
   }
@@ -370,32 +399,62 @@ export const resetPassword = async (
       return;
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    if (newPassword.length < 8) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation error",
+        error: "New password must be at least 8 characters long",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Find user by email
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (userResult.length === 0) {
       const response: AuthResponse = {
         success: false,
         message: "User not found",
-        error: "No user with this email exists",
+        error: "No user found with this email address",
       };
       res.status(404).json(response);
       return;
     }
 
+    const user = userResult[0];
+
+    // Hash new password
     const hashedPassword = await hashPassword(newPassword);
-    user.password = hashedPassword;
-    await user.save();
+
+    // Update password and clear refresh token (force re-login)
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        refreshToken: null,
+      })
+      .where(eq(users.id, user.id));
 
     const response: AuthResponse = {
       success: true,
       message: "Password reset successfully",
+      data: {
+        message:
+          "Password has been reset. Please login with your new password.",
+      },
     };
     res.status(200).json(response);
   } catch (error) {
     console.error("Reset password error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to reset password",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during password reset",
     };
     res.status(500).json(response);
   }
@@ -416,38 +475,50 @@ export const getProfile = async (
       return;
     }
 
-    const user = await User.findById(req.user.userId);
-    if (!user) {
+    // Get user from database
+    const userResult = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        company_name: users.company_name,
+        created_at: users.created_at,
+      })
+      .from(users)
+      .where(eq(users.id, parseInt(req.user.userId)))
+      .limit(1);
+
+    if (userResult.length === 0) {
       const response: AuthResponse = {
         success: false,
         message: "User not found",
-        error: "User does not exist",
+        error: "User account not found",
       };
       res.status(404).json(response);
       return;
     }
 
-    const profile: ProfileResponse = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      company_name: user.company_name,
-      filesUploaded: user.filesUploaded,
-      createdAt: user.createdAt.toISOString(),
-    };
+    const user = userResult[0];
 
     const response: AuthResponse = {
       success: true,
       message: "Profile retrieved successfully",
-      data: profile,
+      data: {
+        id: user.id.toString(),
+        name: user.name,
+        email: user.email,
+        company_name: user.company_name,
+        filesUploaded: 0, // Will be implemented with file upload feature
+        createdAt: user.created_at?.toISOString() || new Date().toISOString(),
+      },
     };
     res.status(200).json(response);
   } catch (error) {
     console.error("Get profile error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to retrieve profile",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during profile retrieval",
     };
     res.status(500).json(response);
   }
@@ -501,17 +572,26 @@ export const changePassword = async (
       return;
     }
 
-    const user = await User.findById(req.user.userId);
-    if (!user) {
+    // Get user from database
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, parseInt(req.user.userId)))
+      .limit(1);
+
+    if (userResult.length === 0) {
       const response: AuthResponse = {
         success: false,
         message: "User not found",
-        error: "User does not exist",
+        error: "User account not found",
       };
       res.status(404).json(response);
       return;
     }
 
+    const user = userResult[0];
+
+    // Verify current password
     const isCurrentPasswordValid = await verifyPassword(
       currentPassword,
       user.password
@@ -526,22 +606,33 @@ export const changePassword = async (
       return;
     }
 
+    // Hash new password
     const hashedNewPassword = await hashPassword(newPassword);
 
-    user.password = hashedNewPassword;
-    await user.save();
+    // Update password and clear refresh token (force re-login from other devices)
+    await db
+      .update(users)
+      .set({
+        password: hashedNewPassword,
+        refreshToken: null,
+      })
+      .where(eq(users.id, user.id));
 
     const response: AuthResponse = {
       success: true,
       message: "Password changed successfully",
+      data: {
+        message:
+          "Password has been changed. You have been logged out from other devices.",
+      },
     };
     res.status(200).json(response);
   } catch (error) {
     console.error("Change password error:", error);
     const response: AuthResponse = {
       success: false,
-      message: "Internal server error",
-      error: "Failed to change password",
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during password change",
     };
     res.status(500).json(response);
   }

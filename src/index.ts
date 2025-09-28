@@ -5,19 +5,10 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import authRoutes from "./routes/authRoutes";
 import fileRoutes from "./routes/fileRoutes";
-import { connectMongoDB } from "./config/mongodb";
 
 dotenv.config();
 
 const app = express();
-
-// Initialize MongoDB connection (async, non-blocking)
-connectMongoDB().catch((error) => {
-  console.error("❌ Initial MongoDB connection failed:", error.message);
-  console.log(
-    "⚠️  App will continue running. Database operations will retry connection."
-  );
-});
 
 app.use(morgan("dev"));
 
