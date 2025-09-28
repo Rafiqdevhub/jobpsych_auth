@@ -16,11 +16,7 @@ app.use(morgan("dev"));
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://jobpsych.vercel.app",
-      "https://hiredesk.vercel.app",
-    ],
+    origin: ["http://localhost:3000", "https://hiredesk.vercel.app"],
     credentials: true,
   })
 );
