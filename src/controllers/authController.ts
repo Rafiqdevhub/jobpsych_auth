@@ -17,8 +17,6 @@ import {
   LoginRequest,
   ResetPasswordRequest,
   AuthResponse,
-  TokenResponse,
-  ProfileResponse,
   ChangePasswordRequest,
 } from "../types/auth";
 
@@ -94,6 +92,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         name: users.name,
         email: users.email,
         company_name: users.company_name,
+        filesUploaded: users.filesUploaded,
       });
 
     if (newUser.length === 0) {
@@ -125,7 +124,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           name: newUser[0].name,
           email: newUser[0].email,
           company_name: newUser[0].company_name,
-          filesUploaded: 0, // Will be implemented with file upload feature
+          filesUploaded: newUser[0].filesUploaded,
         },
       },
     };
@@ -213,7 +212,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           name: user.name,
           email: user.email,
           company_name: user.company_name,
-          filesUploaded: 0, // Will be implemented with file upload feature
+          filesUploaded: user.filesUploaded,
         },
       },
     };
@@ -482,6 +481,7 @@ export const getProfile = async (
         name: users.name,
         email: users.email,
         company_name: users.company_name,
+        filesUploaded: users.filesUploaded,
         created_at: users.created_at,
       })
       .from(users)
@@ -508,7 +508,7 @@ export const getProfile = async (
         name: user.name,
         email: user.email,
         company_name: user.company_name,
-        filesUploaded: 0, // Will be implemented with file upload feature
+        filesUploaded: user.filesUploaded,
         createdAt: user.created_at?.toISOString() || new Date().toISOString(),
       },
     };

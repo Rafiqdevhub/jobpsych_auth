@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-JobPsych is a secure backend API built with Node.js, Express, TypeScript, and MongoDB that provides authentication and file counting services. The system implements industry-standard security practices with JWT access tokens and HttpOnly refresh tokens.
+JobPsych is a secure backend API built with Node.js, Express, TypeScript, and NeonDB (PostgreSQL) that provides authentication and file counting services. The system implements industry-standard security practices with JWT access tokens and HttpOnly refresh tokens.
 
 ## 🏗 Architecture
 
@@ -10,7 +10,7 @@ JobPsych is a secure backend API built with Node.js, Express, TypeScript, and Mo
 
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
+- **Database**: NeonDB (PostgreSQL) with Drizzle ORM
 - **Authentication**: JWT (Access + Refresh Tokens)
 - **Security**: bcrypt password hashing, HttpOnly cookies
 - **File Handling**: Multer for multipart file processing (counting only)
@@ -28,7 +28,7 @@ JobPsych is a secure backend API built with Node.js, Express, TypeScript, and Mo
 ```text
 ├── src/
 │   ├── config/
-│   │   ├── mongodb.ts          # Database connection
+│   │   ├── index.ts           # Database connection (NeonDB)
 │   │   └── multer.ts           # File count configuration
 │   ├── controllers/
 │   │   ├── authController.ts   # Authentication logic
@@ -68,7 +68,7 @@ Copy `.env.example` to `.env` and configure:
 
 ```bash
 # Database
-MONGODB_URI=mongodb://localhost:27017/jobpsych
+DATABASE_URL="postgresql://username:password@hostname:5432/database?sslmode=require"
 
 # JWT Secrets (generate strong random strings)
 JWT_ACCESS_SECRET=your-super-secret-access-key-minimum-32-chars
@@ -86,19 +86,12 @@ NODE_ENV=development
 CORS_ORIGINS=http://localhost:3000,https://yourdomain.vercel.app
 ```
 
-### 3. MongoDB Setup
+### 3. NeonDB Setup
 
 ```bash
-# Install MongoDB locally or use MongoDB Atlas
-# For local MongoDB:
-brew install mongodb-community  # macOS
-# or follow installation guide for your OS
-
-# Start MongoDB service
-mongod
-
-# Or use Docker:
-docker run -d -p 27017:27017 --name mongodb mongo:latest
+# Create a NeonDB account at https://neon.tech
+# Create a new project and copy the connection string
+# Update DATABASE_URL in your .env file with the NeonDB connection string
 ```
 
 ### 4. Generate JWT Secrets
@@ -883,7 +876,7 @@ curl -X POST http://localhost:5000/api/auth/refresh \
 NODE_ENV=production
 JWT_ACCESS_SECRET=<strong-random-string>
 JWT_REFRESH_SECRET=<different-strong-random-string>
-MONGODB_URI=<production-mongodb-uri>
+DATABASE_URL=<production-neondb-connection-string>
 ```
 
 ### Process Management
@@ -924,7 +917,7 @@ For issues or questions:
 1. Check the API documentation at `GET /`
 2. Review server logs for error details
 3. Ensure environment variables are properly set
-4. Verify MongoDB connection is working
+4. Verify NeonDB connection is working
 
 ## 📝 API Response Format
 

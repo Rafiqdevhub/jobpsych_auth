@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import authRoutes from "./routes/authRoutes";
 import fileRoutes from "./routes/fileRoutes";
+import { config } from "./config/env";
 
 dotenv.config();
 
@@ -14,9 +15,7 @@ app.use(morgan("dev"));
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(",")
-      : ["https://hiredesk.vercel.app", "http://localhost:3000"],
+    origin: config.corsOrigins,
     credentials: true,
   })
 );
@@ -27,9 +26,9 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    api: "JobPsych Auth API",
+    api: "HireDesk Auth API",
     description:
-      "Authentication system for JobPsych with user registration, login, change password, password reset, and profile management.",
+      "Authentication system for HireDesk with user registration, login, change password, password reset, and profile management.",
     status: "Server is running",
     timestamp: new Date().toISOString(),
     features: [
@@ -41,7 +40,7 @@ app.get("/", (req, res) => {
       "Password reset functionality",
       "Protected profile endpoint",
       "File upload with upload count tracking",
-      "MongoDB user storage with bcrypt password hashing",
+      "NeonDB (PostgreSQL) user storage with bcrypt password hashing",
       "JWT authentication with token rotation",
     ],
     endpoints: [
@@ -102,7 +101,7 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({
     status: "OK",
-    service: "jobpsych-api",
+    service: "hiredesk-api",
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });
@@ -133,11 +132,38 @@ app.use((req, res) => {
   });
 });
 
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    const statusCode = res.statusCode !== 200 ? res.statusCode : 500;
+
+    const errorDetails =
+      config.nodeEnv === "production"
+        ? { message: "Internal Server Error" }
+        : { message: err.message, stack: err.stack };
+
+    console.error(
+      `[${new Date().toISOString()}] Server error occurred:`,
+      err.message,
+      statusCode
+    );
+
+    res.status(statusCode).json({
+      error: "Server Error",
+      ...errorDetails,
+    });
+  }
+);
+
 // For local development only
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`JobPsych Auth API running on http://localhost:${PORT}`);
+    console.log(`HireDesk Auth API running on http://localhost:${PORT}`);
   });
 }
 
