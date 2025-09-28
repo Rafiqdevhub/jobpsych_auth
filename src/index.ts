@@ -5,27 +5,18 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import authRoutes from "./routes/authRoutes";
 import fileRoutes from "./routes/fileRoutes";
-import { connectMongoDB, ensureMongoDBConnection } from "./config/mongodb";
+import { connectMongoDB } from "./config/mongodb";
 
 dotenv.config();
 
 const app = express();
 
-// Connect to MongoDB (for serverless, this will cache the connection)
+// Initialize MongoDB connection (async, non-blocking)
 connectMongoDB().catch((error) => {
-  console.error("MongoDB connection error:", error);
-  // In serverless, we don't exit the process
-});
-
-// Middleware to ensure MongoDB connection for each request
-app.use(async (req, res, next) => {
-  try {
-    await ensureMongoDBConnection();
-    next();
-  } catch (error) {
-    console.error("Database connection error:", error);
-    res.status(500).json({ error: "Database connection failed" });
-  }
+  console.error("❌ Initial MongoDB connection failed:", error.message);
+  console.log(
+    "⚠️  App will continue running. Database operations will retry connection."
+  );
 });
 
 app.use(morgan("dev"));
