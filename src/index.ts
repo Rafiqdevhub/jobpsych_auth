@@ -16,7 +16,9 @@ app.use(morgan("dev"));
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://hiredesk.vercel.app/"],
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(",")
+      : ["https://hiredesk.vercel.app", "http://localhost:3000"],
     credentials: true,
   })
 );
