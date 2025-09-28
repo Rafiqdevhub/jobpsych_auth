@@ -5,12 +5,28 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import authRoutes from "./routes/authRoutes";
 import fileRoutes from "./routes/fileRoutes";
-import { connectMongoDB } from "./config/mongodb";
+import { connectMongoDB, ensureMongoDBConnection } from "./config/mongodb";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+// Connect to MongoDB (for serverless, this will cache the connection)
+connectMongoDB().catch((error) => {
+  console.error("MongoDB connection error:", error);
+  // In serverless, we don't exit the process
+});
+
+// Middleware to ensure MongoDB connection for each request
+app.use(async (req, res, next) => {
+  try {
+    await ensureMongoDBConnection();
+    next();
+  } catch (error) {
+    console.error("Database connection error:", error);
+    res.status(500).json({ error: "Database connection failed" });
+  }
+});
 
 app.use(morgan("dev"));
 
@@ -135,15 +151,12 @@ app.use((req, res) => {
   });
 });
 
-connectMongoDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`JobPsych Auth API running on http://localhost:${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error("MongoDB connection error:", error);
-    process.exit(1);
+// For local development only
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`JobPsych Auth API running on http://localhost:${PORT}`);
   });
+}
 
 export default app;
