@@ -3,11 +3,12 @@
 ## Known Development Dependencies Issues
 
 ### esbuild Vulnerability (GHSA-67mh-4wv8-2f99)
+
 - **Severity**: Moderate
 - **Component**: esbuild (via drizzle-kit)
 - **Impact**: Development server only - does not affect production
 - **Status**: Acknowledged - waiting for drizzle-kit upstream fix
-- **Mitigation**: 
+- **Mitigation**:
   - Only affects development environment
   - No production runtime impact
   - Development server should not be exposed publicly
@@ -23,17 +24,20 @@ If you discover a security vulnerability in this project, please:
 ## Security Measures
 
 ### Authentication
+
 - JWT tokens with short expiration (15 minutes)
 - Refresh tokens stored as HttpOnly cookies
 - bcrypt password hashing with 12 salt rounds
 - Secure cookie configuration (SameSite, Secure flags)
 
 ### Database Security
+
 - NeonDB with SSL/TLS encryption
 - Parameterized queries via Drizzle ORM
 - Environment-based configuration
 
 ### API Security
+
 - CORS configuration
 - Rate limiting ready (implement as needed)
 - Input validation on all endpoints
@@ -42,10 +46,12 @@ If you discover a security vulnerability in this project, please:
 ## Dependencies
 
 ### Production Dependencies
+
 - All production dependencies are regularly audited for high/critical vulnerabilities
 - Automated security scanning via GitHub Actions
 
 ### Development Dependencies
+
 - Regularly reviewed for security issues
 - Non-production vulnerabilities are assessed for actual impact
 - Updates applied when available without breaking changes
@@ -53,6 +59,7 @@ If you discover a security vulnerability in this project, please:
 ## Security Headers
 
 The application implements:
+
 - X-Powered-By header removal
 - CORS with specific origin restrictions
 - Secure cookie attributes
