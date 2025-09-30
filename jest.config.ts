@@ -3,11 +3,11 @@
  * https://jestjs.io/docs/configuration
  */
 
-import type {Config} from 'jest';
+import type { Config } from "jest";
 
 const config: Config = {
-  // All imported modules in your tests should be mocked automatically
-  // automock: false,
+  // Use ts-jest preset for TypeScript support
+  preset: "ts-jest",
 
   // Stop running tests after `n` failures
   // bail: 0,
@@ -22,7 +22,12 @@ const config: Config = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  // collectCoverageFrom: undefined,
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.d.ts",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/*.spec.{ts,tsx}",
+  ],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: "coverage",
@@ -148,7 +153,23 @@ const config: Config = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  // testEnvironment: "jest-environment-node",
+  testEnvironment: "node",
+
+  // Setup files to run before tests
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
+
+  // Module path mapping
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
+  },
+
+  // Test match patterns
+  testMatch: ["**/tests/**/*.test.{ts,tsx}", "**/?(*.)+(spec|test).{ts,tsx}"],
+
+  // Transform configuration
+  transform: {
+    "^.+\\.tsx?$": "ts-jest",
+  },
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},

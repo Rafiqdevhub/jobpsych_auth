@@ -46,9 +46,13 @@ JobPsych is a secure backend API built with Node.js, Express, TypeScript, and Ne
 │   ├── utils/
 │   │   └── auth.ts             # JWT utilities
 │   └── index.ts                # Main server file
-├── uploads/                    # Directory not used (files counted only)
+├── tests/                      # Jest test suites (37 tests)
+├── .github/workflows/          # GitHub Actions CI/CD pipeline
+├── uploads/                    # File upload directory
 ├── package.json
 ├── tsconfig.json
+├── jest.config.js              # Jest testing configuration
+├── GITHUB_ACTIONS_SETUP.md     # CI/CD setup guide
 └── .env.example
 ```
 
@@ -909,6 +913,87 @@ server {
     }
 }
 ```
+
+## 🧪 Testing
+
+### Test Framework
+
+The project uses **Jest** with comprehensive test coverage:
+
+- **Test Suites**: 6 test suites covering all components
+- **Total Tests**: 37 tests (all passing)
+- **Coverage**: Comprehensive coverage for utils, middleware, controllers
+- **Test Types**: Unit, Integration, and End-to-End tests
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run specific test file
+npm test -- --testPathPattern=auth.test.ts
+```
+
+### Test Structure
+
+```text
+tests/
+├── utils/
+│   ├── auth.test.ts           # JWT & password utilities
+│   └── helpers.test.ts        # Test helper functions
+├── middleware/
+│   └── auth.test.ts           # Authentication middleware
+├── controllers/
+│   ├── authController.test.ts # Auth endpoint logic
+│   └── fileController.test.ts # File processing logic
+├── integration/
+│   └── auth.test.ts           # Full API integration tests
+└── e2e/
+    └── auth.test.ts           # End-to-end authentication flow
+```
+
+### Test Features
+
+- **Database Mocking**: Uses in-memory database for isolated testing
+- **API Testing**: Supertest for HTTP endpoint testing
+- **Security Testing**: Password hashing and JWT validation
+- **Error Handling**: Comprehensive error scenario coverage
+- **Performance Testing**: Response time validation
+
+## 🚀 CI/CD Pipeline
+
+### GitHub Actions
+
+Automated testing pipeline runs on every push and pull request:
+
+- **Multi-Node Testing**: Node.js 18.x and 20.x
+- **Test Execution**: All 37 tests with coverage reporting
+- **Security Scanning**: npm audit for vulnerability detection
+- **Code Quality**: ESLint for code standards
+- **Build Verification**: Production build testing
+- **Performance Checks**: Application startup validation
+
+### Pipeline Configuration
+
+See [GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md) for complete setup instructions.
+
+**Required GitHub Secrets:**
+
+- `NEON_DATABASE_URL`: Your NeonDB connection string
+- `CODECOV_TOKEN`: (Optional) For coverage reporting
+
+### Pipeline Triggers
+
+- **Push to main**: Full test suite + deployment checks
+- **Pull Request**: Full test suite + performance validation
+- **Manual**: Workflow dispatch available
 
 ## 📞 Support
 
