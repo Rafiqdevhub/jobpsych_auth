@@ -8,8 +8,17 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || "",
   corsOrigins: process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(",")
-    : ["https://hiredesk.vercel.app", "http://localhost:3000"],
+    : [
+        "https://hiredesk.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "https://hr-resume-analyzer-backend.vercel.app",
+      ],
   nodeEnv: process.env.NODE_ENV || "development",
+  // Upload Configuration
+  upload: {
+    limit: parseInt(process.env.UPLOAD_LIMIT || "10"),
+  },
   // JWT Configuration
   jwt: {
     secret: process.env.JWT_SECRET || "your-secret-key-change-in-production",

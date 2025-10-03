@@ -56,3 +56,31 @@ export interface ChangePasswordRequest {
   newPassword: string;
   confirmPassword: string;
 }
+
+// Rate Limiting Types
+export interface RateLimitResponse {
+  success: boolean;
+  email: string;
+  filesUploaded: number;
+  limit: number;
+  remaining: number;
+  message: string;
+  error?: string;
+}
+
+export interface UploadStatsResponse {
+  success: boolean;
+  stats: {
+    email: string;
+    name: string;
+    totalUploads: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+    canUpload: boolean;
+  };
+}
+
+export interface IncrementUploadRequest {
+  email: string;
+}
