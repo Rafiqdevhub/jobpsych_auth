@@ -256,6 +256,52 @@ app.get("/", (req, res) => {
           "Provides comprehensive upload statistics for frontend dashboards",
       },
 
+      // JWT Verification Endpoints (Cross-Service Communication)
+      {
+        category: "JWT Verification",
+        method: "POST",
+        path: "/api/auth/verify-token",
+        description: "Verify JWT token validity and decode payload",
+        authentication: "None (Public - for debugging and FastAPI integration)",
+        requestBody: {
+          token: "string (required) - JWT token to verify",
+        },
+        response: {
+          success: "boolean",
+          message: "string",
+          decoded: "object (token payload)",
+          tokenInfo: {
+            algorithm: "string",
+            expiresIn: "string",
+            secretLength: "number",
+          },
+        },
+        notes:
+          "Use this endpoint to verify if JWT tokens are valid and properly signed. Useful for debugging 403 Forbidden errors.",
+      },
+      {
+        category: "JWT Verification",
+        method: "GET",
+        path: "/api/auth/jwt-info",
+        description: "Get JWT configuration information for debugging",
+        authentication: "None (Public - for cross-service setup)",
+        requestBody: "None",
+        response: {
+          success: "boolean",
+          jwtInfo: {
+            algorithm: "string (HS256)",
+            accessTokenExpiry: "string",
+            refreshTokenExpiry: "string",
+            secretLength: "number",
+            secretFirstChars: "string",
+            secretLastChars: "string",
+            environment: "string",
+          },
+        },
+        notes:
+          "Share this information with FastAPI team to ensure JWT secrets match. Helps resolve authentication issues.",
+      },
+
       {
         category: "System",
         method: "GET",

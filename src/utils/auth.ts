@@ -1,15 +1,32 @@
 import bcrypt from "bcrypt";
 import jwt, { Secret } from "jsonwebtoken";
 import { TokenPayload } from "../types/auth";
+import { config } from "../config/env";
 
-const JWT_ACCESS_SECRET: Secret =
-  process.env.JWT_ACCESS_SECRET || "access-secret-key";
-const JWT_REFRESH_SECRET: Secret =
-  process.env.JWT_REFRESH_SECRET || "refresh-secret-key";
-const JWT_ACCESS_EXPIRES_IN: string =
-  process.env.JWT_ACCESS_EXPIRES_IN || "15m";
-const JWT_REFRESH_EXPIRES_IN: string =
-  process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+// Use unified JWT secrets from config (ensures compatibility with FastAPI)
+const JWT_ACCESS_SECRET: Secret = config.jwt.accessSecret;
+const JWT_REFRESH_SECRET: Secret = config.jwt.refreshSecret;
+const JWT_ACCESS_EXPIRES_IN: string = config.jwt.accessExpiresIn;
+const JWT_REFRESH_EXPIRES_IN: string = config.jwt.refreshExpiresIn;
+
+// Log JWT configuration on startup (for debugging cross-service communication)
+console.log("=".repeat(60));
+console.log("🔐 JWT CONFIGURATION LOADED");
+console.log("JWT_ACCESS_SECRET length:", JWT_ACCESS_SECRET.toString().length);
+console.log(
+  "JWT_ACCESS_SECRET first 10 chars:",
+  JWT_ACCESS_SECRET.toString().substring(0, 10)
+);
+console.log(
+  "JWT_ACCESS_SECRET last 10 chars:",
+  JWT_ACCESS_SECRET.toString().substring(
+    JWT_ACCESS_SECRET.toString().length - 10
+  )
+);
+console.log("Access Token Expiry:", JWT_ACCESS_EXPIRES_IN);
+console.log("Refresh Token Expiry:", JWT_REFRESH_EXPIRES_IN);
+console.log("Environment:", config.nodeEnv);
+console.log("=".repeat(60));
 
 export const hashPassword = async (password: string): Promise<string> => {
   const saltRounds = 12;
