@@ -12,7 +12,6 @@ dotenv.config();
 
 const app = express();
 
-// Remove X-Powered-By header for security
 app.disable("x-powered-by");
 
 app.use(morgan("dev"));
