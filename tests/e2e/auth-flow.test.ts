@@ -19,19 +19,6 @@ describe("Authentication Flow E2E", () => {
   });
 });
 
-describe("File Processing E2E", () => {
-  it("should complete full file processing flow", async () => {
-    // This is a placeholder for end-to-end file processing tests
-    // In a real application, you would:
-    // 1. Authenticate user
-    // 2. Upload a file
-    // 3. Verify file processing
-    // 4. Check statistics update
-
-    expect(true).toBe(true);
-  });
-});
-
 describe("Error Scenarios E2E", () => {
   it("should handle database connection errors", async () => {
     // Test database connection failure scenarios
