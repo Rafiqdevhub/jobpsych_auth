@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import authRoutes from "./routes/authRoutes";
-import fileRoutes from "./routes/fileRoutes";
 import rateLimitRoutes from "./routes/rateLimitRoutes";
 import { config } from "./config/env";
 
@@ -425,7 +424,6 @@ app.get("/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", rateLimitRoutes);
-app.use("/api/files", fileRoutes);
 
 app.use(
   (
