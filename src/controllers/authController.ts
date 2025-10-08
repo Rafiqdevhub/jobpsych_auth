@@ -18,6 +18,7 @@ import {
   ResetPasswordRequest,
   AuthResponse,
   ChangePasswordRequest,
+  UpdateProfileRequest,
 } from "../types/auth";
 
 const setRefreshTokenCookie = (res: Response, token: string): void => {
@@ -633,6 +634,209 @@ export const changePassword = async (
       success: false,
       message: "Internal Server Error",
       error: "An unexpected error occurred during password change",
+    };
+    res.status(500).json(response);
+  }
+};
+
+export const updateProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Unauthorized",
+        error: "User not authenticated",
+      };
+      res.status(401).json(response);
+      return;
+    }
+
+    const { name, currentPassword, newPassword, confirmPassword } =
+      req.body as UpdateProfileRequest;
+
+    // Check if at least one field is provided
+    const hasName = req.body.hasOwnProperty("name");
+    const hasNewPassword = req.body.hasOwnProperty("newPassword");
+
+    if (!hasName && !hasNewPassword) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation error",
+        error: "At least one field (name or newPassword) must be provided",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Validate name if provided
+    if (hasName) {
+      if (typeof name !== "string" || name.trim().length === 0) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation error",
+          error: "Name must be a non-empty string",
+        };
+        res.status(400).json(response);
+        return;
+      }
+      if (name.length > 255) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation error",
+          error: "Name must be less than 255 characters",
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
+    // Validate password fields if newPassword is provided
+    if (hasNewPassword) {
+      if (!currentPassword) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation error",
+          error: "Current password is required when changing password",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (!confirmPassword) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation error",
+          error: "Confirm password is required when changing password",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation error",
+          error: "New password and confirm password do not match",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation error",
+          error: "New password must be at least 8 characters long",
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
+    // Get user from database
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, parseInt(req.user.userId)))
+      .limit(1);
+
+    if (userResult.length === 0) {
+      const response: AuthResponse = {
+        success: false,
+        message: "User not found",
+        error: "User account not found",
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    const user = userResult[0];
+
+    // Verify current password if changing password
+    if (newPassword) {
+      const isCurrentPasswordValid = await verifyPassword(
+        currentPassword!,
+        user.password
+      );
+      if (!isCurrentPasswordValid) {
+        const response: AuthResponse = {
+          success: false,
+          message: "Invalid current password",
+          error: "Current password is incorrect",
+        };
+        res.status(400).json(response);
+        return;
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      updated_at: new Date(),
+    };
+
+    if (name !== undefined) {
+      updateData.name = name.trim();
+    }
+
+    if (newPassword) {
+      updateData.password = await hashPassword(newPassword);
+      // Clear refresh token when password changes (force re-login from other devices)
+      updateData.refreshToken = null;
+    }
+
+    // Update user profile
+    const updatedUser = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, user.id))
+      .returning({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        company_name: users.company_name,
+        filesUploaded: users.filesUploaded,
+        updated_at: users.updated_at,
+      });
+
+    if (updatedUser.length === 0) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Update failed",
+        error: "Failed to update profile",
+      };
+      res.status(500).json(response);
+      return;
+    }
+
+    const updatedProfile = updatedUser[0];
+
+    const response: AuthResponse = {
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        id: updatedProfile.id.toString(),
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+        company_name: updatedProfile.company_name,
+        filesUploaded: updatedProfile.filesUploaded,
+        updatedAt:
+          updatedProfile.updated_at?.toISOString() || new Date().toISOString(),
+        ...(newPassword && {
+          securityNote:
+            "Password has been changed. You have been logged out from other devices.",
+        }),
+      },
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during profile update",
     };
     res.status(500).json(response);
   }

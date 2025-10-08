@@ -6,7 +6,7 @@ import {
   refresh,
   logout,
   getProfile,
-  changePassword,
+  updateProfile,
 } from "../controllers/authController";
 import { verifyToken, getJWTInfo } from "../controllers/jwtController";
 import { authenticate } from "../middleware/auth";
@@ -19,10 +19,10 @@ router.post("/login", login);
 router.post("/reset-password", resetPassword);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
-router.post("/change-password", authenticate, changePassword);
+router.put("/update-profile", authenticate, updateProfile);
 router.get("/profile", authenticate, getProfile);
 
-// JWT debugging and verification routes (for cross-service communication)
+//  (for cross-service communication)
 router.post("/verify-token", verifyToken);
 router.get("/jwt-info", getJWTInfo);
 

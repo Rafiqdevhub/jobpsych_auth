@@ -57,6 +57,13 @@ export interface ChangePasswordRequest {
   confirmPassword: string;
 }
 
+export interface UpdateProfileRequest {
+  name?: string;
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
+}
+
 // Rate Limiting Types
 export interface RateLimitResponse {
   success: boolean;

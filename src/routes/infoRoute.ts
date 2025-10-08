@@ -124,17 +124,33 @@ router.get("/", (req, res) => {
       },
       {
         category: "Authentication",
-        method: "POST",
-        path: "/api/auth/change-password",
-        description: "Change password for authenticated user",
+        method: "PUT",
+        path: "/api/auth/update-profile",
+        description:
+          "Update authenticated user's profile (name and/or password)",
         authentication: "Access token (required)",
         requestBody: {
-          currentPassword: "string (required)",
-          newPassword: "string (required, min 6 chars)",
-          confirmPassword: "string (required, must match newPassword)",
+          name: "string (optional) - Update user's name",
+          currentPassword: "string (required if updating password)",
+          newPassword: "string (optional) - New password (min 8 chars)",
+          confirmPassword:
+            "string (required if updating password, must match newPassword)",
         },
-        response: "Success message",
-        notes: "Requires current password verification",
+        response: {
+          success: "boolean",
+          message: "string",
+          data: {
+            id: "string",
+            name: "string",
+            email: "string",
+            company_name: "string",
+            filesUploaded: "number",
+            updatedAt: "string (ISO)",
+            securityNote: "string (only if password changed)",
+          },
+        },
+        notes:
+          "Update name, password, or both. Password changes require current password verification and log out other devices.",
       },
       {
         category: "Authentication",

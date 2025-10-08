@@ -23,22 +23,8 @@ export const verifyToken = async (
       return;
     }
 
-    // Log verification attempt
-    console.log("=".repeat(60));
-    console.log("🔍 TOKEN VERIFICATION REQUEST");
-    console.log("Token length:", token.length);
-    console.log("Token prefix:", token.substring(0, 20) + "...");
-    console.log(
-      "Using JWT_ACCESS_SECRET length:",
-      config.jwt.accessSecret.toString().length
-    );
-    console.log("=".repeat(60));
-
     // Verify token
     const decoded = jwt.verify(token, config.jwt.accessSecret);
-
-    console.log("✅ Token verified successfully!");
-    console.log("Decoded payload:", decoded);
 
     res.status(200).json({
       success: true,
@@ -51,8 +37,6 @@ export const verifyToken = async (
       },
     });
   } catch (error: any) {
-    console.error("❌ Token verification failed:", error.message);
-
     res.status(401).json({
       success: false,
       message: "Invalid or expired token",
@@ -90,7 +74,6 @@ export const getJWTInfo = async (
       note: "Share this info with FastAPI team to ensure JWT secrets match",
     });
   } catch (error: any) {
-    console.error("Error getting JWT info:", error.message);
     res.status(500).json({
       success: false,
       message: "Failed to get JWT info",
