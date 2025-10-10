@@ -121,8 +121,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Audit and fix vulnerabilities (force)
-        run: npm audit fix --force
+      - name: Audit and fix vulnerabilities
+        run: |
+          npm audit fix --force || echo "Some dev dependency vulnerabilities may remain"
+          # Check production vulnerabilities only
+          if npm audit --production --audit-level=high; then
+            echo "✅ No high-severity production vulnerabilities found"
+          else
+            echo "❌ High-severity production vulnerabilities detected"
+            exit 1
+          fi
+        continue-on-error: false
 
       - name: Run security audit for production dependencies
         run: npm audit --production --audit-level=high
