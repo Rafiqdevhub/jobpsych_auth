@@ -1,32 +1,65 @@
-import { describe, it, expect } from "@jest/globals";
+import { test, expect } from "./fixtures";
 
-describe("Authentication Flow E2E", () => {
-  it("should complete full authentication flow", async () => {
-    // This is a placeholder for end-to-end authentication tests
-    // In a real application, you would:
-    // 1. Register a user
-    // 2. Login with credentials
-    // 3. Access protected routes
-    // 4. Refresh tokens
-    // 5. Logout
+test.describe("Authentication Flow E2E", () => {
+  test("should complete full authentication flow", async ({
+    api,
+    testUser,
+    authToken,
+  }) => {
+    // Test user registration (already done in fixture)
+    expect(authToken).toBeDefined();
+    expect(typeof authToken).toBe("string");
+    expect(authToken.length).toBeGreaterThan(0);
 
-    expect(true).toBe(true);
+    // Test accessing protected route with valid token
+    const profileResponse = await api.get("/api/auth/profile", {
+      headers: {
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+
+    expect(profileResponse.ok()).toBe(true);
+    const profileData = await profileResponse.json();
+    expect(profileData.success).toBe(true);
+    expect(profileData.data).toBeDefined();
+    expect(profileData.data.email).toBe(testUser.email);
   });
 
-  it("should handle token expiration gracefully", async () => {
-    // Test token expiration and refresh flow
-    expect(true).toBe(true);
-  });
-});
+  test("should handle invalid login credentials", async ({ api }) => {
+    const response = await api.post("/api/auth/login", {
+      data: {
+        email: "nonexistent@example.com",
+        password: "wrongpassword",
+      },
+    });
 
-describe("Error Scenarios E2E", () => {
-  it("should handle database connection errors", async () => {
-    // Test database connection failure scenarios
-    expect(true).toBe(true);
+    expect(response.status()).toBe(401);
+    const data = await response.json();
+    expect(data.success).toBe(false);
+    expect(data.message).toBe("Invalid credentials");
   });
 
-  it("should handle rate limiting", async () => {
-    // Test rate limiting if implemented
-    expect(true).toBe(true);
+  test("should reject access to protected routes without token", async ({
+    api,
+  }) => {
+    const response = await api.get("/api/auth/profile");
+
+    expect(response.status()).toBe(401);
+    const data = await response.json();
+    expect(data.success).toBe(false);
+    expect(data.message).toBe("Access token is required");
+  });
+
+  test("should reject access with invalid token", async ({ api }) => {
+    const response = await api.get("/api/auth/profile", {
+      headers: {
+        Authorization: "Bearer invalid.token.here",
+      },
+    });
+
+    expect(response.status()).toBe(401);
+    const data = await response.json();
+    expect(data.success).toBe(false);
+    expect(data.message).toBe("Invalid or expired access token");
   });
 });

@@ -16,13 +16,17 @@
     "test:verbose": "jest --verbose",
     "test:unit": "jest tests/utils tests/middleware",
     "test:integration": "jest tests/controllers tests/integration",
-    "test:e2e": "jest tests/e2e"
+    "test:e2e": "jest tests/e2e",
+    "test:e2e:playwright": "playwright test",
+    "test:e2e:playwright:ui": "playwright test --ui",
+    "test:e2e:playwright:debug": "playwright test --debug"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@tsconfig/node22": "^22.0.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
