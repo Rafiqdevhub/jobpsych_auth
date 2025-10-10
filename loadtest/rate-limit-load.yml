@@ -1,0 +1,58 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Normal usage phase
+    - duration: 120
+      arrivalRate: 10
+      name: "Normal Usage"
+    # High usage phase (approaching limits)
+    - duration: 180
+      arrivalRate: 30
+      name: "High Usage"
+    # Rate limit testing phase
+    - duration: 120
+      arrivalRate: 100
+      name: "Rate Limit Test"
+
+scenarios:
+  - name: "Rate Limit Testing"
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "RateLimitUser_{{ $randomInt }}"
+            email: "ratelimit{{ $randomInt }}@example.com"
+            companyName: "RateLimit Company"
+            password: "TestPassword123!"
+          capture:
+            json: "$.data.userId"
+            as: "userId"
+          expect:
+            - statusCode: 201
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "ratelimit{{ $randomInt }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: 200
+      # Simulate multiple file uploads to trigger rate limiting
+      - loop:
+          - post:
+              url: "/api/auth/increment-upload"
+              headers:
+                Authorization: "Bearer {{ accessToken }}"
+              json:
+                email: "ratelimit{{ $randomInt }}@example.com"
+              expect:
+                - statusCode: [200, 429]
+          - get:
+              url: "/api/auth/user-uploads/ratelimit{{ $randomInt }}@example.com"
+              headers:
+                Authorization: "Bearer {{ accessToken }}"
+              expect:
+                - statusCode: 200
+        count: 15 # Try to exceed the 10 file limit

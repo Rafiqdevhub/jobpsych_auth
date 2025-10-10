@@ -1,0 +1,100 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Gradual ramp-up
+    - duration: 60
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp Up"
+    # Sustained high load
+    - duration: 180
+      arrivalRate: 50
+      name: "Sustained Load"
+    # Stress testing phase
+    - duration: 120
+      arrivalRate: 100
+      name: "Stress Test"
+    # Recovery phase
+    - duration: 60
+      arrivalRate: 10
+      name: "Recovery"
+
+scenarios:
+  - name: "Authentication Stress"
+    weight: 40
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "StressUser_{{ $randomInt }}"
+            email: "stress{{ $randomInt }}@example.com"
+            companyName: "Stress Company"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: [201, 500]
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "stress{{ $randomInt }}@example.com"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: [200, 401, 500]
+
+  - name: "Database Stress"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "DBStress_{{ $randomInt }}"
+            email: "dbstress{{ $randomInt }}@example.com"
+            companyName: "Database Stress Company"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: [201, 500]
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "dbstress{{ $randomInt }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: [200, 401, 500]
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: [200, 401, 500]
+
+  - name: "Rate Limit Stress"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "stress{{ $randomInt(1, 100) }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: [200, 401, 500]
+      - loop:
+          - post:
+              url: "/api/auth/increment-upload"
+              headers:
+                Authorization: "Bearer {{ accessToken }}"
+              json:
+                email: "stress{{ $randomInt(1, 100) }}@example.com"
+              expect:
+                - statusCode: [200, 400, 429, 500]
+          - get:
+              url: "/api/auth/user-uploads/stress{{ $randomInt(1, 100) }}@example.com"
+              headers:
+                Authorization: "Bearer {{ accessToken }}"
+              expect:
+                - statusCode: [200, 400, 500]
+        count: 20

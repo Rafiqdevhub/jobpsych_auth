@@ -1,10 +1,13 @@
-import { test, expect } from './fixtures';
+import { test, expect } from "./fixtures";
 
-test.describe('Protected Route Access', () => {
-  test('should allow access to protected routes with valid JWT token', async ({ api, authToken }) => {
-    const response = await api.get('/api/auth/profile', {
+test.describe("Protected Route Access", () => {
+  test("should allow access to protected routes with valid JWT token", async ({
+    api,
+    authToken,
+  }) => {
+    const response = await api.get("/api/auth/profile", {
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${authToken}`,
       },
     });
 
@@ -15,27 +18,31 @@ test.describe('Protected Route Access', () => {
     expect(data.data.email).toBeDefined();
   });
 
-  test('should reject access to protected routes without authorization header', async ({ api }) => {
-    const response = await api.get('/api/auth/profile');
+  test("should reject access to protected routes without authorization header", async ({
+    api,
+  }) => {
+    const response = await api.get("/api/auth/profile");
 
     expect(response.status()).toBe(401);
     const data = await response.json();
     expect(data.success).toBe(false);
-    expect(data.message).toBe('Access token is required');
+    expect(data.message).toBe("Access token is required");
   });
 
-  test('should reject access with malformed authorization header', async ({ api }) => {
+  test("should reject access with malformed authorization header", async ({
+    api,
+  }) => {
     const testCases = [
-      { header: 'Bearer', description: 'Missing token' },
-      { header: 'Token valid.token.here', description: 'Wrong scheme' },
-      { header: 'Bearer invalid', description: 'Invalid token format' },
-      { header: '', description: 'Empty header' },
+      { header: "Bearer", description: "Missing token" },
+      { header: "Token valid.token.here", description: "Wrong scheme" },
+      { header: "Bearer invalid", description: "Invalid token format" },
+      { header: "", description: "Empty header" },
     ];
 
     for (const testCase of testCases) {
-      const response = await api.get('/api/auth/profile', {
+      const response = await api.get("/api/auth/profile", {
         headers: {
-          'Authorization': testCase.header,
+          Authorization: testCase.header,
         },
       });
 
@@ -45,31 +52,34 @@ test.describe('Protected Route Access', () => {
     }
   });
 
-  test('should reject access with invalid JWT token', async ({ api }) => {
+  test("should reject access with invalid JWT token", async ({ api }) => {
     const invalidTokens = [
-      'invalid.jwt.token',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid',
-      'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid',
+      "invalid.jwt.token",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid",
+      "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid",
     ];
 
     for (const token of invalidTokens) {
-      const response = await api.get('/api/auth/profile', {
+      const response = await api.get("/api/auth/profile", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       expect(response.status()).toBe(401);
       const data = await response.json();
       expect(data.success).toBe(false);
-      expect(data.message).toBe('Invalid or expired access token');
+      expect(data.message).toBe("Invalid or expired access token");
     }
   });
 
-  test('should validate JWT token payload structure', async ({ api, authToken }) => {
-    const response = await api.get('/api/auth/profile', {
+  test("should validate JWT token payload structure", async ({
+    api,
+    authToken,
+  }) => {
+    const response = await api.get("/api/auth/profile", {
       headers: {
-        'Authorization': `Bearer ${authToken}`,
+        Authorization: `Bearer ${authToken}`,
       },
     });
 
@@ -77,30 +87,30 @@ test.describe('Protected Route Access', () => {
     const data = await response.json();
 
     // Verify the user data structure from the token
-    expect(data.data).toHaveProperty('id');
-    expect(data.data).toHaveProperty('name');
-    expect(data.data).toHaveProperty('email');
-    expect(data.data).toHaveProperty('company_name');
-    expect(data.data).toHaveProperty('filesUploaded');
+    expect(data.data).toHaveProperty("id");
+    expect(data.data).toHaveProperty("name");
+    expect(data.data).toHaveProperty("email");
+    expect(data.data).toHaveProperty("company_name");
+    expect(data.data).toHaveProperty("filesUploaded");
 
     // Verify data types
-    expect(typeof data.data.id).toBe('string');
-    expect(typeof data.data.name).toBe('string');
-    expect(typeof data.data.email).toBe('string');
-    expect(typeof data.data.company_name).toBe('string');
-    expect(typeof data.data.filesUploaded).toBe('number');
+    expect(typeof data.data.id).toBe("string");
+    expect(typeof data.data.name).toBe("string");
+    expect(typeof data.data.email).toBe("string");
+    expect(typeof data.data.company_name).toBe("string");
+    expect(typeof data.data.filesUploaded).toBe("number");
   });
 
-  test('should allow access to multiple protected routes with same token', async ({ api, authToken }) => {
-    const protectedRoutes = [
-      '/api/auth/profile',
-      '/api/auth/upload-stats',
-    ];
+  test("should allow access to multiple protected routes with same token", async ({
+    api,
+    authToken,
+  }) => {
+    const protectedRoutes = ["/api/auth/profile", "/api/auth/upload-stats"];
 
     for (const route of protectedRoutes) {
       const response = await api.get(route, {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          Authorization: `Bearer ${authToken}`,
         },
       });
 
@@ -109,15 +119,20 @@ test.describe('Protected Route Access', () => {
     }
   });
 
-  test('should handle concurrent requests with same token', async ({ api, authToken }) => {
+  test("should handle concurrent requests with same token", async ({
+    api,
+    authToken,
+  }) => {
     // Make multiple concurrent requests
-    const requests = Array(5).fill(null).map(() =>
-      api.get('/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      })
-    );
+    const requests = Array(5)
+      .fill(null)
+      .map(() =>
+        api.get("/api/auth/profile", {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        })
+      );
 
     const responses = await Promise.all(requests);
 
@@ -129,25 +144,25 @@ test.describe('Protected Route Access', () => {
     }
   });
 
-  test('should properly handle token expiration', async ({ api }) => {
+  test("should properly handle token expiration", async ({ api }) => {
     // This test would require manipulating token expiration
     // For now, we'll test with a token that should be valid
     const uniqueEmail = `expiretest${Date.now()}@example.com`;
 
     // Register and login
-    await api.post('/api/auth/register', {
+    await api.post("/api/auth/register", {
       data: {
-        name: 'Expire Test User',
+        name: "Expire Test User",
         email: uniqueEmail,
-        company_name: 'Test Company',
-        password: 'password123',
+        company_name: "Test Company",
+        password: "password123",
       },
     });
 
-    const loginResponse = await api.post('/api/auth/login', {
+    const loginResponse = await api.post("/api/auth/login", {
       data: {
         email: uniqueEmail,
-        password: 'password123',
+        password: "password123",
       },
     });
 
@@ -155,9 +170,9 @@ test.describe('Protected Route Access', () => {
     const token = loginData.data.accessToken;
 
     // Use token immediately - should work
-    const immediateResponse = await api.get('/api/auth/profile', {
+    const immediateResponse = await api.get("/api/auth/profile", {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 

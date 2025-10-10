@@ -41,6 +41,9 @@ export const test = base.extend<TestFixtures>({
   api: async ({ playwright }, use) => {
     const apiContext = await playwright.request.newContext({
       baseURL: "http://localhost:5000",
+      extraHTTPHeaders: {
+        "Content-Type": "application/json",
+      },
     });
     await use(apiContext);
     await apiContext.dispose();

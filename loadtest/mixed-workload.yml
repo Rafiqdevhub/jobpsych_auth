@@ -1,0 +1,125 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Business hours - moderate load
+    - duration: 240
+      arrivalRate: 15
+      name: "Business Hours"
+    # Peak hours - high load
+    - duration: 120
+      arrivalRate: 40
+      name: "Peak Hours"
+    # Off hours - low load
+    - duration: 120
+      arrivalRate: 5
+      name: "Off Hours"
+
+scenarios:
+  - name: "User Registration & Onboarding"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "MixedUser_{{ $randomInt }}"
+            email: "mixed{{ $randomInt }}@example.com"
+            companyName: "Mixed Company {{ $randomInt }}"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: 201
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "mixed{{ $randomInt }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+  - name: "File Upload Workflow"
+    weight: 35
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "mixed{{ $randomInt(1, 100) }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: 200
+      - post:
+          url: "/api/auth/increment-upload"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            email: "mixed{{ $randomInt(1, 100) }}@example.com"
+          expect:
+            - statusCode: [200, 429]
+      - get:
+          url: "/api/auth/user-uploads/mixed{{ $randomInt(1, 100) }}@example.com"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+  - name: "Profile Management"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "mixed{{ $randomInt(1, 100) }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: 200
+      - put:
+          url: "/api/auth/update-profile"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            name: "Updated Mixed User {{ $randomInt }}"
+            password: "NewPassword123!"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+  - name: "Failed Operations"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "nonexistent{{ $randomInt }}@example.com"
+            password: "wrongpassword"
+          expect:
+            - statusCode: 401
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer invalid-token"
+          expect:
+            - statusCode: 401
+      - post:
+          url: "/api/auth/increment-upload"
+          json:
+            email: "invalid@example.com"
+          expect:
+            - statusCode: 400

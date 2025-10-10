@@ -1,0 +1,102 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    # Warm-up phase
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm-up"
+    # Main load phase
+    - duration: 300
+      arrivalRate: 20
+      name: "Main Load"
+    # Peak load phase
+    - duration: 120
+      arrivalRate: 50
+      name: "Peak Load"
+    # Cool-down phase
+    - duration: 60
+      arrivalRate: 5
+      name: "Cool-down"
+
+scenarios:
+  - name: "Authentication Flow"
+    weight: 70
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "LoadTestUser_{{ $randomInt }}"
+            email: "loadtest{{ $randomInt }}@example.com"
+            companyName: "LoadTest Company"
+            password: "TestPassword123!"
+          capture:
+            json: "$.data.userId"
+            as: "userId"
+          expect:
+            - statusCode: 201
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "loadtest{{ $randomInt }}@example.com"
+            password: "TestPassword123!"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      - post:
+          url: "/api/auth/logout"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+
+  - name: "Failed Authentication"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "nonexistent@example.com"
+            password: "wrongpassword"
+          expect:
+            - statusCode: 401
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: ""
+            email: "invalid-email"
+            companyName: ""
+            password: "123"
+          expect:
+            - statusCode: 400
+
+  - name: "Token Refresh"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            name: "RefreshUser_{{ $randomInt }}"
+            email: "refresh{{ $randomInt }}@example.com"
+            companyName: "Refresh Company"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: 201
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "refresh{{ $randomInt }}@example.com"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: 200
+      - post:
+          url: "/api/auth/refresh"
+          expect:
+            - statusCode: 401
