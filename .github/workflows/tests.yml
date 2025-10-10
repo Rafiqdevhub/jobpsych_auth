@@ -121,6 +121,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit and fix vulnerabilities (force)
+        run: npm audit fix --force
+
       - name: Run security audit for production dependencies
         run: npm audit --production --audit-level=high
 
