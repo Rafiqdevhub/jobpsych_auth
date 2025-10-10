@@ -16,7 +16,7 @@
     "test:verbose": "jest --verbose",
     "test:unit": "jest tests/utils tests/middleware",
     "test:integration": "jest tests/controllers tests/integration",
-    "test:e2e": "jest tests/e2e",
+    "test:e2e": "playwright test",
     "test:e2e:playwright": "playwright test",
     "test:e2e:playwright:ui": "playwright test --ui",
     "test:e2e:playwright:debug": "playwright test --debug",
