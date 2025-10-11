@@ -45,17 +45,17 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
+  webServer: process.env.DATABASE_URL ? {
     command: "npm run dev",
     url: "http://localhost:5000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes
     env: {
-      DATABASE_URL: process.env.DATABASE_URL || "",
-      JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
-      JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "",
+      DATABASE_URL: process.env.DATABASE_URL,
+      JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "test-access-secret-key-for-github-actions-testing-minimum-32-chars",
+      JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "test-refresh-secret-key-for-github-actions-testing-minimum-32-chars",
       NODE_ENV: process.env.NODE_ENV || "test",
       PORT: "5000",
     },
-  },
+  } : undefined,
 });

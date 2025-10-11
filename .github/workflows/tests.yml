@@ -61,6 +61,17 @@ jobs:
           NODE_ENV: test
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
 
+      - name: Check required secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ ERROR: NEON_DATABASE_URL secret is not set in repository secrets"
+            echo "Please set the NEON_DATABASE_URL secret in your GitHub repository settings"
+            exit 1
+          fi
+          echo "✅ Required secrets are configured"
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
       - name: Run E2E tests
         run: npm run test:e2e
         env:
