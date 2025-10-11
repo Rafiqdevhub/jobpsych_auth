@@ -74,6 +74,34 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
 
+      - name: Test database connectivity
+        run: |
+          echo "Testing database connectivity..."
+          node -e "
+          require('dotenv').config();
+          const { neon } = require('@neondatabase/serverless');
+
+          async function testConnection() {
+            try {
+              const databaseUrl = process.env.DATABASE_URL;
+              if (!databaseUrl) {
+                throw new Error('DATABASE_URL is not set');
+              }
+              
+              const sql = neon(databaseUrl);
+              await sql\`SELECT 1\`;
+              console.log('✅ Database connection successful');
+            } catch (error) {
+              console.error('❌ Database connection failed:', error.message);
+              process.exit(1);
+            }
+          }
+
+          testConnection();
+          "
+        env:
+          DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+
       - name: Run E2E tests
         run: npm run test:e2e
         env:

@@ -48,21 +48,18 @@ export default defineConfig({
   webServer: {
     command:
       process.env.DATABASE_URL && process.env.DATABASE_URL.trim()
-        ? "npm run dev"
+        ? `DATABASE_URL="${process.env.DATABASE_URL}" JWT_ACCESS_SECRET="${
+            process.env.JWT_ACCESS_SECRET ||
+            "test-access-secret-key-for-github-actions-testing-minimum-32-chars"
+          }" JWT_REFRESH_SECRET="${
+            process.env.JWT_REFRESH_SECRET ||
+            "test-refresh-secret-key-for-github-actions-testing-minimum-32-chars"
+          }" NODE_ENV="${
+            process.env.NODE_ENV || "test"
+          }" PORT="5000" npm run dev`
         : 'echo "❌ ERROR: DATABASE_URL environment variable is not set or empty. Please configure NEON_DATABASE_URL secret in GitHub repository settings." && exit 1',
     url: "http://localhost:5000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes
-    env: {
-      DATABASE_URL: process.env.DATABASE_URL || "",
-      JWT_ACCESS_SECRET:
-        process.env.JWT_ACCESS_SECRET ||
-        "test-access-secret-key-for-github-actions-testing-minimum-32-chars",
-      JWT_REFRESH_SECRET:
-        process.env.JWT_REFRESH_SECRET ||
-        "test-refresh-secret-key-for-github-actions-testing-minimum-32-chars",
-      NODE_ENV: process.env.NODE_ENV || "test",
-      PORT: "5000",
-    },
   },
 });
