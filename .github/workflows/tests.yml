@@ -63,12 +63,14 @@ jobs:
 
       - name: Check required secrets
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "❌ ERROR: NEON_DATABASE_URL secret is not set in repository secrets"
+          if [ -z "$DATABASE_URL" ] || [ "$DATABASE_URL" = " " ]; then
+            echo "❌ ERROR: NEON_DATABASE_URL secret is not set or is empty in repository secrets"
             echo "Please set the NEON_DATABASE_URL secret in your GitHub repository settings"
+            echo "Go to: https://github.com/Rafiqdevhub/jobpsych_auth/settings/secrets/actions"
             exit 1
           fi
           echo "✅ Required secrets are configured"
+          echo "Database URL length: ${#DATABASE_URL} characters"
         env:
           DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
 
