@@ -71,10 +71,9 @@ test.describe("Error Scenarios", () => {
 
     const responses = await Promise.all(requests);
 
-    // Due to concurrent requests, some may succeed and others may fail with database errors
-    // The API catches database duplicate errors as 500, not 409
+    // Due to concurrent requests, one may succeed and others may fail with duplicate email errors
     const successCount = responses.filter((r) => r.status() === 201).length;
-    const errorCount = responses.filter((r) => r.status() === 500).length;
+    const errorCount = responses.filter((r) => r.status() === 409).length;
 
     expect(successCount).toBeGreaterThanOrEqual(1);
     expect(successCount + errorCount).toBe(3); // All requests should either succeed or fail

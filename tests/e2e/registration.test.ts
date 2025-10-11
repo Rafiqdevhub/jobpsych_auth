@@ -91,7 +91,7 @@ test.describe("User Registration", () => {
       expect(data.success).toBe(false);
       expect(data.message).toBe("Validation Error");
       expect(data.error).toBe(
-        "Name, email, password, and company_name are required"
+        "Name, email, password, and company name are required"
       );
     }
   });

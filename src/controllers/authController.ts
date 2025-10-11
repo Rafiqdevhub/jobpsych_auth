@@ -88,22 +88,53 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
 
     // Create user
-    const newUser = await db
-      .insert(users)
-      .values({
-        name,
-        email,
-        company_name: company,
-        password: hashedPassword,
-        refreshToken: hashedRefreshToken,
-      })
-      .returning({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        company_name: users.company_name,
-        filesUploaded: users.filesUploaded,
-      });
+    let newUser;
+    try {
+      newUser = await db
+        .insert(users)
+        .values({
+          name,
+          email,
+          company_name: company,
+          password: hashedPassword,
+          refreshToken: hashedRefreshToken,
+        })
+        .returning({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          company_name: users.company_name,
+          filesUploaded: users.filesUploaded,
+        });
+    } catch (dbError: any) {
+      console.error("Database error during registration:", dbError);
+
+      // Handle database constraint violations
+      if (dbError?.cause?.code === "22001") {
+        // Value too long for column
+        const response: AuthResponse = {
+          success: false,
+          message: "Validation Error",
+          error: "Input data exceeds maximum allowed length",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (dbError?.cause?.code === "23505") {
+        // Unique constraint violation (duplicate email)
+        const response: AuthResponse = {
+          success: false,
+          message: "User already exists",
+          error: "A user with this email already exists",
+        };
+        res.status(409).json(response);
+        return;
+      }
+
+      // Re-throw for general error handling
+      throw dbError;
+    }
 
     if (newUser.length === 0) {
       const response: AuthResponse = {
