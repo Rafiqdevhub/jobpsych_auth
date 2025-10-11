@@ -70,6 +70,11 @@ class HealthChecker {
         });
       });
 
+      // Send request body if provided
+      if (options.body) {
+        req.write(options.body);
+      }
+
       req.end();
     });
   }

@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-10-11T04:15:18.234Z",
+  "environment": "development",
+  "validations": [
+    {
+      "name": "Environment Check",
+      "description": "Verify environment variables and configuration",
+      "success": false,
+      "error": "Missing required environment variables: DATABASE_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, NODE_ENV",
+      "details": null,
+      "duration": 0,
+      "timestamp": "2025-10-11T04:15:18.239Z"
+    },
+    {
+      "name": "Build Check",
+      "description": "Verify application builds successfully",
+      "success": true,
+      "error": null,
+      "details": {
+        "buildSuccessful": true
+      },
+      "duration": 2876,
+      "timestamp": "2025-10-11T04:15:21.116Z"
+    },
+    {
+      "name": "Database Check",
+      "description": "Verify database connectivity and migrations",
+      "success": false,
+      "error": "Database check failed: ",
+      "details": null,
+      "duration": 8175,
+      "timestamp": "2025-10-11T04:15:29.291Z"
+    },
+    {
+      "name": "Health Check",
+      "description": "Verify all health endpoints are responding",
+      "success": true,
+      "error": null,
+      "details": {
+        "totalChecks": 4,
+        "passedChecks": 4,
+        "averageResponseTime": 1024.5
+      },
+      "duration": 4114,
+      "timestamp": "2025-10-11T04:15:33.406Z"
+    },
+    {
+      "name": "Load Test",
+      "description": "Run basic load test to verify performance",
+      "success": true,
+      "error": null,
+      "details": {
+        "loadTestPassed": false,
+        "warning": "Command failed: timeout 30 artillery quick --count 10 --num 1 http://localhost:5000/api/auth/info\nERROR: Invalid syntax. Default option is not allowed more than '1' time(s).\r\nType \"TIMEOUT /?\" for usage.\r\n"
+      },
+      "duration": 58,
+      "timestamp": "2025-10-11T04:15:33.465Z"
+    },
+    {
+      "name": "Security Check",
+      "description": "Verify security configurations and headers",
+      "success": true,
+      "error": null,
+      "details": {
+        "securityChecks": [
+          "JWT secrets validated",
+          "CORS configuration checked",
+          "Debug mode verified"
+        ],
+        "issuesFound": 0
+      },
+      "duration": 0,
+      "timestamp": "2025-10-11T04:15:33.465Z"
+    }
+  ]
+}
