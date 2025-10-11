@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
-import dotenv from "dotenv";
-import path from "path";
+const dotenv = require("dotenv");
+const path = require("path");
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, ".env") });
@@ -48,5 +48,12 @@ export default defineConfig({
     url: "http://localhost:5000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL || "",
+      JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
+      JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "",
+      NODE_ENV: process.env.NODE_ENV || "test",
+      PORT: "5000",
+    },
   },
 });
