@@ -26,4 +26,16 @@ router.get("/profile", authenticate, getProfile);
 router.post("/verify-token", verifyToken);
 router.get("/jwt-info", getJWTInfo);
 
+// Service info endpoint for health checks
+router.get("/info", (req, res) => {
+  res.json({
+    api: "JobPsych Auth API",
+    version: "3.0.0",
+    status: "Server is running",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+    uptime: process.uptime(),
+  });
+});
+
 export default router;

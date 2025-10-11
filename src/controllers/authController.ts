@@ -42,13 +42,22 @@ const clearRefreshTokenCookie = (res: Response): void => {
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, password, company_name }: RegisterRequest = req.body;
+    const {
+      name,
+      email,
+      password,
+      company_name,
+      companyName,
+    }: RegisterRequest & { companyName?: string } = req.body;
 
-    if (!name || !email || !password || !company_name) {
+    // Support both company_name and companyName for compatibility
+    const company = company_name || companyName;
+
+    if (!name || !email || !password || !company) {
       const response: AuthResponse = {
         success: false,
         message: "Validation Error",
-        error: "Name, email, password, and company_name are required",
+        error: "Name, email, password, and company name are required",
       };
       res.status(400).json(response);
       return;
@@ -84,7 +93,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       .values({
         name,
         email,
-        company_name,
+        company_name: company,
         password: hashedPassword,
         refreshToken: hashedRefreshToken,
       })
