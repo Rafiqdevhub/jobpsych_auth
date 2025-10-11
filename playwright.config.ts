@@ -46,9 +46,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: process.env.DATABASE_URL && process.env.DATABASE_URL.trim()
-      ? "npm run dev"
-      : 'echo "❌ ERROR: DATABASE_URL environment variable is not set or empty. Please configure NEON_DATABASE_URL secret in GitHub repository settings." && exit 1',
+    command:
+      process.env.DATABASE_URL && process.env.DATABASE_URL.trim()
+        ? "npm run dev"
+        : 'echo "❌ ERROR: DATABASE_URL environment variable is not set or empty. Please configure NEON_DATABASE_URL secret in GitHub repository settings." && exit 1',
     url: "http://localhost:5000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes
