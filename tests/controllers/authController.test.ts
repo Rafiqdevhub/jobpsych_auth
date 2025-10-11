@@ -32,7 +32,7 @@ describe("Auth Controller", () => {
       expect(mockResponse.json).toHaveBeenCalledWith({
         success: false,
         message: "Validation Error",
-        error: "Name, email, password, and company_name are required",
+        error: "Name, email, password, and company name are required",
       });
     });
 

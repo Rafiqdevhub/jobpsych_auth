@@ -3,6 +3,7 @@ export interface RegisterRequest {
   email: string;
   password: string;
   company_name: string;
+  companyName?: string; // For backward compatibility
 }
 
 export interface LoginRequest {

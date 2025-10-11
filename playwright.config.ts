@@ -2,8 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 const dotenv = require("dotenv");
 const path = require("path");
 
-// Load environment variables
-dotenv.config({ path: path.resolve(__dirname, ".env") });
+// Load environment variables only when not in CI (CI sets env vars directly)
+if (!process.env.CI) {
+  dotenv.config({ path: path.resolve(__dirname, ".env") });
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.
