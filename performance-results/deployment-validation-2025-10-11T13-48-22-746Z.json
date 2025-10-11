@@ -1,0 +1,72 @@
+{
+  "timestamp": "2025-10-11T13:48:07.853Z",
+  "environment": "development",
+  "validations": [
+    {
+      "name": "Environment Check",
+      "description": "Verify environment variables and configuration",
+      "success": false,
+      "error": "Missing required environment variables: DATABASE_URL, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, NODE_ENV",
+      "details": null,
+      "duration": 0,
+      "timestamp": "2025-10-11T13:48:07.860Z"
+    },
+    {
+      "name": "Build Check",
+      "description": "Verify application builds successfully",
+      "success": true,
+      "error": null,
+      "details": {
+        "buildSuccessful": true
+      },
+      "duration": 3783,
+      "timestamp": "2025-10-11T13:48:11.643Z"
+    },
+    {
+      "name": "Database Check",
+      "description": "Verify database connectivity and migrations",
+      "success": false,
+      "error": "Database check failed: ",
+      "details": null,
+      "duration": 11006,
+      "timestamp": "2025-10-11T13:48:22.649Z"
+    },
+    {
+      "name": "Health Check",
+      "description": "Verify all health endpoints are responding",
+      "success": false,
+      "error": "4 health checks failed",
+      "details": null,
+      "duration": 22,
+      "timestamp": "2025-10-11T13:48:22.672Z"
+    },
+    {
+      "name": "Load Test",
+      "description": "Run basic load test to verify performance",
+      "success": true,
+      "error": null,
+      "details": {
+        "loadTestPassed": false,
+        "warning": "Command failed: timeout 30 artillery quick --count 10 --num 1 http://localhost:5000/api/auth/info\nERROR: Invalid syntax. Default option is not allowed more than '1' time(s).\r\nType \"TIMEOUT /?\" for usage.\r\n"
+      },
+      "duration": 73,
+      "timestamp": "2025-10-11T13:48:22.745Z"
+    },
+    {
+      "name": "Security Check",
+      "description": "Verify security configurations and headers",
+      "success": true,
+      "error": null,
+      "details": {
+        "securityChecks": [
+          "JWT secrets validated",
+          "CORS configuration checked",
+          "Debug mode verified"
+        ],
+        "issuesFound": 0
+      },
+      "duration": 1,
+      "timestamp": "2025-10-11T13:48:22.746Z"
+    }
+  ]
+}

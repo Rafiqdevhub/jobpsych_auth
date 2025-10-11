@@ -107,7 +107,7 @@ class HealthChecker {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: "HealthCheck",
-        email: "healthcheck@example.com",
+        email: `healthcheck${Date.now()}@example.com`,
         companyName: "Health Check",
         password: "HealthCheck123!",
       }),
