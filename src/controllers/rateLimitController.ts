@@ -19,7 +19,6 @@ export const getUserUploads = async (
   try {
     const { email } = req.params;
 
-    // Validate email parameter
     if (!email) {
       res.status(400).json({
         success: false,
@@ -40,24 +39,26 @@ export const getUserUploads = async (
       return;
     }
 
-    // Query database for user
+    const normalizedEmail = email.toLowerCase();
+
     const result = await db
       .select({
         email: users.email,
         filesUploaded: users.filesUploaded,
+        batch_analysis: users.batch_analysis,
+        compare_resumes: users.compare_resumes,
         name: users.name,
       })
       .from(users)
-      .where(eq(users.email, email.toLowerCase()))
+      .where(eq(users.email, normalizedEmail))
       .limit(1);
 
-    // User not found
     if (!result || result.length === 0) {
       res.status(404).json({
         success: false,
         message: "User not found",
         error: "USER_NOT_FOUND",
-        filesUploaded: 0, // Return 0 so FastAPI can handle new users
+        filesUploaded: 0,
       });
       return;
     }
@@ -65,11 +66,12 @@ export const getUserUploads = async (
     const user = result[0];
     const filesUploaded = user.filesUploaded || 0;
 
-    // Return upload statistics
     res.status(200).json({
       success: true,
       email: user.email,
       filesUploaded: filesUploaded,
+      batch_analysis: user.batch_analysis || 0,
+      compare_resumes: user.compare_resumes || 0,
       limit: UPLOAD_LIMIT,
       remaining: Math.max(0, UPLOAD_LIMIT - filesUploaded),
       message: "Upload statistics retrieved successfully",
@@ -87,16 +89,17 @@ export const getUserUploads = async (
 };
 
 /**
- * @route   POST /api/auth/increment-upload
- * @desc    Increment user's file upload count after successful upload
- * @access  Public (will be called by FastAPI service after successful upload)
+ * @route   POST /api/auth/increment-counter
+ * @desc    Increment specific user counter (filesUploaded, batch_analysis, or compare_resumes)
+ * @access  Public (will be called by FastAPI service)
+ * @param   fieldType: "filesUploaded" | "batch_analysis" | "compare_resumes"
  */
-export const incrementUpload = async (
+export const incrementCounter = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const { email } = req.body;
+    const { email, fieldType = "filesUploaded" } = req.body;
 
     // Validate email
     if (!email) {
@@ -119,24 +122,53 @@ export const incrementUpload = async (
       return;
     }
 
-    // Increment upload count atomically
+    // Validate fieldType
+    const validFields = ["filesUploaded", "batch_analysis", "compare_resumes"];
+    if (!validFields.includes(fieldType)) {
+      res.status(400).json({
+        success: false,
+        message: `Invalid field type. Must be one of: ${validFields.join(
+          ", "
+        )}`,
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    // Prepare update object based on fieldType
+    let updateData: any = {
+      updated_at: new Date(),
+    };
+
+    let returnFields: any = {
+      email: users.email,
+      filesUploaded: users.filesUploaded,
+      batch_analysis: users.batch_analysis,
+      compare_resumes: users.compare_resumes,
+    };
+
+    if (fieldType === "filesUploaded") {
+      updateData.filesUploaded = sql`${users.filesUploaded} + 1`;
+    } else if (fieldType === "batch_analysis") {
+      updateData.batch_analysis = sql`${users.batch_analysis} + 1`;
+    } else if (fieldType === "compare_resumes") {
+      updateData.compare_resumes = sql`${users.compare_resumes} + 1`;
+    }
+
+    // Increment the specified counter atomically
     const result = await db
       .update(users)
-      .set({
-        filesUploaded: sql`${users.filesUploaded} + 1`,
-        updated_at: new Date(),
-      })
-      .where(eq(users.email, email.toLowerCase()))
-      .returning({
-        email: users.email,
-        filesUploaded: users.filesUploaded,
-      });
+      .set(updateData)
+      .where(eq(users.email, normalizedEmail))
+      .returning(returnFields);
 
     // User not found
     if (!result || result.length === 0) {
       res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "User not found - must register first",
         error: "USER_NOT_FOUND",
       });
       return;
@@ -144,12 +176,92 @@ export const incrementUpload = async (
 
     const updatedUser = result[0];
 
-    // Return success response
+    // Return success response with all counters
+    res.status(200).json({
+      success: true,
+      message: `${fieldType} incremented successfully`,
+      email: updatedUser.email,
+      filesUploaded: updatedUser.filesUploaded,
+      batch_analysis: updatedUser.batch_analysis,
+      compare_resumes: updatedUser.compare_resumes,
+      incrementedField: fieldType,
+    });
+  } catch (error) {
+    console.error("Increment counter error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to increment counter",
+      error: "SERVER_ERROR",
+      details:
+        config.nodeEnv === "development" ? (error as Error).message : undefined,
+    });
+  }
+};
+
+/**
+ * @route   POST /api/auth/increment-upload
+ * @desc    Increment user's file upload count after successful upload
+ * @access  Public (will be called by FastAPI service after successful upload)
+ */
+export const incrementUpload = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    const result = await db
+      .update(users)
+      .set({
+        filesUploaded: sql`${users.filesUploaded} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(users.email, normalizedEmail))
+      .returning({
+        email: users.email,
+        filesUploaded: users.filesUploaded,
+      });
+
+    if (!result || result.length === 0) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to increment upload count",
+        error: "INCREMENT_FAILED",
+      });
+      return;
+    }
+
+    const updatedUser = result[0];
+
     res.status(200).json({
       success: true,
       message: "Upload count incremented successfully",
       email: updatedUser.email,
       filesUploaded: updatedUser.filesUploaded,
+      batch_analysis: 0,
+      compare_resumes: 0,
       limit: UPLOAD_LIMIT,
       remaining: Math.max(0, UPLOAD_LIMIT - updatedUser.filesUploaded),
     });
@@ -191,6 +303,8 @@ export const getUploadStats = async (
         email: users.email,
         name: users.name,
         filesUploaded: users.filesUploaded,
+        batch_analysis: users.batch_analysis,
+        compare_resumes: users.compare_resumes,
       })
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
@@ -214,6 +328,8 @@ export const getUploadStats = async (
         email: user.email,
         name: user.name,
         totalUploads: filesUploaded,
+        batchAnalysisCount: user.batch_analysis || 0,
+        compareResumesCount: user.compare_resumes || 0,
         limit: UPLOAD_LIMIT,
         remaining: Math.max(0, UPLOAD_LIMIT - filesUploaded),
         percentage: Math.min(100, (filesUploaded / UPLOAD_LIMIT) * 100),
@@ -226,6 +342,248 @@ export const getUploadStats = async (
       success: false,
       message: "Failed to get upload statistics",
       error: "SERVER_ERROR",
+    });
+  }
+};
+
+/**
+ * @route   POST /api/auth/increment-batch-analysis
+ * @desc    Increment user's batch analysis count
+ * @access  Public (will be called by FastAPI service)
+ */
+export const incrementBatchAnalysis = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    // Validate email
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    // Increment batch analysis count atomically
+    const result = await db
+      .update(users)
+      .set({
+        batch_analysis: sql`${users.batch_analysis} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(users.email, normalizedEmail))
+      .returning({
+        email: users.email,
+        batch_analysis: users.batch_analysis,
+      });
+
+    // Verify increment worked
+    if (!result || result.length === 0) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to increment batch analysis counter",
+        error: "INCREMENT_FAILED",
+      });
+      return;
+    }
+
+    const updatedUser = result[0];
+
+    // Return success response
+    res.status(200).json({
+      success: true,
+      message: "Batch analysis count incremented successfully",
+      email: updatedUser.email,
+      batch_analysis: updatedUser.batch_analysis,
+    });
+  } catch (error) {
+    console.error("Increment batch analysis error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to increment batch analysis count",
+      error: "SERVER_ERROR",
+      details:
+        config.nodeEnv === "development" ? (error as Error).message : undefined,
+    });
+  }
+};
+
+/**
+ * @route   POST /api/auth/increment-compare-resumes
+ * @desc    Increment user's compare resumes count
+ * @access  Public (will be called by FastAPI service)
+ */
+export const incrementCompareResumes = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    // Validate email
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    // Increment compare resumes count atomically
+    const result = await db
+      .update(users)
+      .set({
+        compare_resumes: sql`${users.compare_resumes} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(users.email, normalizedEmail))
+      .returning({
+        email: users.email,
+        compare_resumes: users.compare_resumes,
+      });
+
+    // Verify increment worked
+    if (!result || result.length === 0) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to increment compare resumes count",
+        error: "INCREMENT_FAILED",
+      });
+      return;
+    }
+
+    const updatedUser = result[0];
+
+    // Return success response
+    res.status(200).json({
+      success: true,
+      message: "Compare resumes count incremented successfully",
+      email: updatedUser.email,
+      compare_resumes: updatedUser.compare_resumes,
+    });
+  } catch (error) {
+    console.error("Increment compare resumes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to increment compare resumes count",
+      error: "SERVER_ERROR",
+      details:
+        config.nodeEnv === "development" ? (error as Error).message : undefined,
+    });
+  }
+};
+
+/**
+ * @route   GET /api/auth/feature-usage/:email
+ * @desc    Get feature usage statistics for a user
+ * @access  Public (will be called by FastAPI service)
+ */
+export const getFeatureUsage = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.params;
+
+    // Validate email parameter
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    // Query database for user
+    const result = await db
+      .select({
+        email: users.email,
+        filesUploaded: users.filesUploaded,
+        batch_analysis: users.batch_analysis,
+        compare_resumes: users.compare_resumes,
+        name: users.name,
+      })
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    // User not found
+    if (!result || result.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+        error: "USER_NOT_FOUND",
+      });
+      return;
+    }
+
+    const user = result[0];
+
+    // Return feature usage statistics
+    res.status(200).json({
+      success: true,
+      email: user.email,
+      name: user.name,
+      features: {
+        filesUploaded: user.filesUploaded || 0,
+        batch_analysis: user.batch_analysis || 0,
+        compare_resumes: user.compare_resumes || 0,
+      },
+      message: "Feature usage statistics retrieved successfully",
+    });
+  } catch (error) {
+    console.error("Get feature usage error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get feature usage statistics",
+      error: "SERVER_ERROR",
+      details:
+        config.nodeEnv === "development" ? (error as Error).message : undefined,
     });
   }
 };

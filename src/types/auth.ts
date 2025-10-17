@@ -40,6 +40,8 @@ export interface TokenResponse {
     email: string;
     company_name: string;
     filesUploaded: number;
+    batch_analysis: number;
+    compare_resumes: number;
   };
 }
 
@@ -49,6 +51,8 @@ export interface ProfileResponse {
   email: string;
   company_name: string;
   filesUploaded: number;
+  batch_analysis: number;
+  compare_resumes: number;
   createdAt: string;
 }
 
@@ -70,6 +74,8 @@ export interface RateLimitResponse {
   success: boolean;
   email: string;
   filesUploaded: number;
+  batch_analysis: number;
+  compare_resumes: number;
   limit: number;
   remaining: number;
   message: string;

@@ -14,6 +14,8 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   refreshToken: varchar("refresh_token", { length: 255 }),
   filesUploaded: integer("files_uploaded").default(0).notNull(),
+  batch_analysis: integer("batch_analysis").default(0).notNull(),
+  compare_resumes: integer("compare_resumes").default(0).notNull(),
   created_at: timestamp().defaultNow().notNull(),
   updated_at: timestamp().defaultNow().notNull(),
 });

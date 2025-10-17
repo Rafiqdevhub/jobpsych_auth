@@ -49,6 +49,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", rateLimitRoutes);
+app.use("/api", rateLimitRoutes);
 
 app.use(
   (

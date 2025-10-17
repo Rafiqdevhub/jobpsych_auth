@@ -63,11 +63,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check if user already exists
     const existingUser = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(eq(users.email, email.toLowerCase()))
       .limit(1);
 
     if (existingUser.length > 0) {
@@ -79,25 +78,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       res.status(409).json(response);
       return;
     }
-
-    // Hash password
     const hashedPassword = await hashPassword(password);
-
-    // Generate refresh token
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
 
-    // Create user
     let newUser;
     try {
       newUser = await db
         .insert(users)
         .values({
           name,
-          email,
+          email: email.toLowerCase(),
           company_name: company,
           password: hashedPassword,
           refreshToken: hashedRefreshToken,
+          filesUploaded: 0,
+          batch_analysis: 0,
+          compare_resumes: 0,
         })
         .returning({
           id: users.id,
@@ -105,11 +102,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           email: users.email,
           company_name: users.company_name,
           filesUploaded: users.filesUploaded,
+          batch_analysis: users.batch_analysis,
+          compare_resumes: users.compare_resumes,
         });
     } catch (dbError: any) {
       console.error("Database error during registration:", dbError);
-
-      // Handle database constraint violations
       if (dbError?.cause?.code === "22001") {
         // Value too long for column
         const response: AuthResponse = {
@@ -131,8 +128,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         res.status(409).json(response);
         return;
       }
-
-      // Re-throw for general error handling
       throw dbError;
     }
 
@@ -145,14 +140,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       res.status(500).json(response);
       return;
     }
-
-    // Generate access token
     const accessToken = generateAccessToken({
       userId: newUser[0].id.toString(),
       email: newUser[0].email,
     });
-
-    // Set refresh token cookie
     setRefreshTokenCookie(res, refreshToken);
 
     const response: AuthResponse = {
@@ -166,6 +157,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           email: newUser[0].email,
           company_name: newUser[0].company_name,
           filesUploaded: newUser[0].filesUploaded,
+          batch_analysis: newUser[0].batch_analysis,
+          compare_resumes: newUser[0].compare_resumes,
         },
       },
     };
@@ -194,12 +187,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json(response);
       return;
     }
-
-    // Find user by email
     const userResult = await db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(eq(users.email, email.toLowerCase()))
       .limit(1);
 
     if (userResult.length === 0) {
@@ -213,8 +204,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = userResult[0];
-
-    // Verify password
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
       const response: AuthResponse = {
@@ -225,22 +214,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       res.status(401).json(response);
       return;
     }
-
-    // Generate new tokens
     const accessToken = generateAccessToken({
       userId: user.id.toString(),
       email: user.email,
     });
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = await hashRefreshToken(refreshToken);
-
-    // Update refresh token in database
     await db
       .update(users)
       .set({ refreshToken: hashedRefreshToken })
       .where(eq(users.id, user.id));
-
-    // Set refresh token cookie
     setRefreshTokenCookie(res, refreshToken);
 
     const response: AuthResponse = {
@@ -254,6 +237,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           email: user.email,
           company_name: user.company_name,
           filesUploaded: user.filesUploaded,
+          batch_analysis: user.batch_analysis,
+          compare_resumes: user.compare_resumes,
         },
       },
     };
@@ -283,7 +268,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Verify refresh token signature
     let decoded;
     try {
       decoded = verifyRefreshTokenSignature(refreshToken);
@@ -341,7 +325,6 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate new tokens
     const newAccessToken = generateAccessToken({
       userId: user.id.toString(),
       email: user.email,
@@ -349,13 +332,11 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
     const newRefreshToken = generateRefreshToken();
     const hashedNewRefreshToken = await hashRefreshToken(newRefreshToken);
 
-    // Update refresh token in database
     await db
       .update(users)
       .set({ refreshToken: hashedNewRefreshToken })
       .where(eq(users.id, user.id));
 
-    // Set new refresh token cookie
     setRefreshTokenCookie(res, newRefreshToken);
 
     const response: AuthResponse = {
@@ -380,11 +361,8 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
     const refreshToken = extractRefreshTokenFromCookie(req.cookies);
-
-    // Clear refresh token from database if it exists
     if (refreshToken) {
       try {
-        // Find user by refresh token and clear it
         const userResult = await db
           .select()
           .from(users)
@@ -398,12 +376,9 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
             .where(eq(users.id, userResult[0].id));
         }
       } catch (error) {
-        // Log error but don't fail logout
         console.error("Error clearing refresh token from database:", error);
       }
     }
-
-    // Clear refresh token cookie
     clearRefreshTokenCookie(res);
 
     const response: AuthResponse = {
@@ -449,7 +424,6 @@ export const resetPassword = async (
       return;
     }
 
-    // Find user by email
     const userResult = await db
       .select()
       .from(users)
@@ -467,11 +441,7 @@ export const resetPassword = async (
     }
 
     const user = userResult[0];
-
-    // Hash new password
     const hashedPassword = await hashPassword(newPassword);
-
-    // Update password and clear refresh token (force re-login)
     await db
       .update(users)
       .set({
@@ -515,7 +485,6 @@ export const getProfile = async (
       return;
     }
 
-    // Get user from database
     const userResult = await db
       .select({
         id: users.id,
@@ -523,6 +492,8 @@ export const getProfile = async (
         email: users.email,
         company_name: users.company_name,
         filesUploaded: users.filesUploaded,
+        batch_analysis: users.batch_analysis,
+        compare_resumes: users.compare_resumes,
         created_at: users.created_at,
       })
       .from(users)
@@ -550,6 +521,8 @@ export const getProfile = async (
         email: user.email,
         company_name: user.company_name,
         filesUploaded: user.filesUploaded,
+        batch_analysis: user.batch_analysis,
+        compare_resumes: user.compare_resumes,
         createdAt: user.created_at?.toISOString() || new Date().toISOString(),
       },
     };
@@ -613,7 +586,6 @@ export const changePassword = async (
       return;
     }
 
-    // Get user from database
     const userResult = await db
       .select()
       .from(users)
@@ -632,7 +604,6 @@ export const changePassword = async (
 
     const user = userResult[0];
 
-    // Verify current password
     const isCurrentPasswordValid = await verifyPassword(
       currentPassword,
       user.password
@@ -647,10 +618,8 @@ export const changePassword = async (
       return;
     }
 
-    // Hash new password
     const hashedNewPassword = await hashPassword(newPassword);
 
-    // Update password and clear refresh token (force re-login from other devices)
     await db
       .update(users)
       .set({
@@ -697,7 +666,6 @@ export const updateProfile = async (
     const { name, currentPassword, newPassword, confirmPassword } =
       req.body as UpdateProfileRequest;
 
-    // Check if at least one field is provided
     const hasName = req.body.hasOwnProperty("name");
     const hasNewPassword = req.body.hasOwnProperty("newPassword");
 
@@ -711,7 +679,6 @@ export const updateProfile = async (
       return;
     }
 
-    // Validate name if provided
     if (hasName) {
       if (typeof name !== "string" || name.trim().length === 0) {
         const response: AuthResponse = {
@@ -733,7 +700,6 @@ export const updateProfile = async (
       }
     }
 
-    // Validate password fields if newPassword is provided
     if (hasNewPassword) {
       if (!currentPassword) {
         const response: AuthResponse = {
@@ -776,7 +742,6 @@ export const updateProfile = async (
       }
     }
 
-    // Get user from database
     const userResult = await db
       .select()
       .from(users)
@@ -795,7 +760,6 @@ export const updateProfile = async (
 
     const user = userResult[0];
 
-    // Verify current password if changing password
     if (newPassword) {
       const isCurrentPasswordValid = await verifyPassword(
         currentPassword!,
@@ -812,7 +776,6 @@ export const updateProfile = async (
       }
     }
 
-    // Prepare update data
     const updateData: any = {
       updated_at: new Date(),
     };
@@ -823,11 +786,9 @@ export const updateProfile = async (
 
     if (newPassword) {
       updateData.password = await hashPassword(newPassword);
-      // Clear refresh token when password changes (force re-login from other devices)
       updateData.refreshToken = null;
     }
 
-    // Update user profile
     const updatedUser = await db
       .update(users)
       .set(updateData)
@@ -838,6 +799,8 @@ export const updateProfile = async (
         email: users.email,
         company_name: users.company_name,
         filesUploaded: users.filesUploaded,
+        batch_analysis: users.batch_analysis,
+        compare_resumes: users.compare_resumes,
         updated_at: users.updated_at,
       });
 
@@ -862,6 +825,8 @@ export const updateProfile = async (
         email: updatedProfile.email,
         company_name: updatedProfile.company_name,
         filesUploaded: updatedProfile.filesUploaded,
+        batch_analysis: updatedProfile.batch_analysis,
+        compare_resumes: updatedProfile.compare_resumes,
         updatedAt:
           updatedProfile.updated_at?.toISOString() || new Date().toISOString(),
         ...(newPassword && {

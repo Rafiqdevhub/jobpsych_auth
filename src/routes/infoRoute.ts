@@ -33,20 +33,29 @@ router.get("/", (req, res) => {
       "Password reset functionality with secure validation",
       "Protected profile endpoint with user data",
       "Rate limiting for file uploads (10 files per user)",
-      "FastAPI integration endpoints for upload count management",
+      "Batch analysis tracking - counts batch resume analysis operations",
+      "Resume comparison tracking - counts resume comparison operations",
+      "FastAPI integration endpoints for all feature tracking",
+      "Feature usage endpoints for analytics and dashboard display",
       "NeonDB (PostgreSQL) user storage with bcrypt password hashing",
       "JWT authentication with automatic token rotation",
       "CORS protection for multiple domains",
       "Comprehensive error handling and logging",
+      "Atomic database operations to prevent race conditions",
     ],
 
     rateLimiting: {
       uploadLimit: config.upload.limit,
       description: "Users can upload maximum 10 files",
+      batchAnalysisLimit: "Unlimited batch analysis operations per user",
+      compareResumesLimit: "Unlimited resume comparison operations per user",
       endpoints: {
-        check: "GET /api/auth/user-uploads/:email",
-        increment: "POST /api/auth/increment-upload",
-        stats: "GET /api/auth/upload-stats",
+        checkUploads: "GET /api/auth/user-uploads/:email",
+        incrementUploads: "POST /api/auth/increment-upload",
+        uploadStats: "GET /api/auth/upload-stats",
+        incrementBatchAnalysis: "POST /api/auth/increment-batch-analysis",
+        incrementCompareResumes: "POST /api/auth/increment-compare-resumes",
+        featureUsage: "GET /api/auth/feature-usage/:email",
       },
       integration: "Designed for FastAPI backend integration",
     },
@@ -203,25 +212,66 @@ router.get("/", (req, res) => {
       },
       {
         category: "Rate Limiting",
+        method: "POST",
+        path: "/api/auth/increment-batch-analysis",
+        description:
+          "Increment user's batch analysis count after successful batch processing",
+        authentication: "None (Public - for FastAPI service)",
+        requestBody: {
+          email: "string (required)",
+        },
+        response: {
+          success: "boolean",
+          message: "string",
+          email: "string",
+          batch_analysis: "number",
+          filesUploaded: "number",
+          compare_resumes: "number",
+        },
+        notes:
+          "Called by FastAPI after successful batch analysis to track feature usage",
+      },
+      {
+        category: "Rate Limiting",
+        method: "POST",
+        path: "/api/auth/increment-compare-resumes",
+        description:
+          "Increment user's resume comparison count after successful comparison",
+        authentication: "None (Public - for FastAPI service)",
+        requestBody: {
+          email: "string (required)",
+        },
+        response: {
+          success: "boolean",
+          message: "string",
+          email: "string",
+          compare_resumes: "number",
+          filesUploaded: "number",
+          batch_analysis: "number",
+        },
+        notes:
+          "Called by FastAPI after successful resume comparison to track feature usage",
+      },
+      {
+        category: "Rate Limiting",
         method: "GET",
-        path: "/api/auth/upload-stats",
-        description: "Get detailed upload statistics for authenticated user",
-        authentication: "Access token (required)",
+        path: "/api/auth/feature-usage/:email",
+        description: "Get comprehensive feature usage statistics for a user",
+        authentication: "None (Public - for FastAPI service and dashboard)",
         requestBody: "None",
         response: {
           success: "boolean",
+          message: "string",
+          email: "string",
           stats: {
-            email: "string",
-            name: "string",
-            totalUploads: "number",
-            limit: "number (10)",
-            remaining: "number",
-            percentage: "number (0-100)",
-            canUpload: "boolean",
+            filesUploaded: "number (count of files uploaded)",
+            batch_analysis: "number (count of batch analysis operations)",
+            compare_resumes: "number (count of resume comparisons)",
+            totalFeatureUsage: "number (sum of all feature counters)",
           },
         },
         notes:
-          "Provides comprehensive upload statistics for frontend dashboards",
+          "Consolidated endpoint for retrieving all feature usage statistics. Used for analytics, dashboards, and rate limit checks.",
       },
 
       // JWT Verification Endpoints (Cross-Service Communication)
@@ -300,7 +350,7 @@ router.get("/", (req, res) => {
     integration: {
       fastapi: {
         description:
-          "Seamless integration with FastAPI backend for file processing",
+          "Seamless integration with FastAPI backend for file processing and feature tracking",
         workflow: [
           "1. Frontend authenticates user with this service",
           "2. Frontend receives JWT access token",
@@ -308,11 +358,17 @@ router.get("/", (req, res) => {
           "4. FastAPI validates JWT and checks upload limit via GET /user-uploads/:email",
           "5. FastAPI processes file if under limit",
           "6. FastAPI increments count via POST /increment-upload",
-          "7. User's upload count is updated in real-time",
+          "7. For batch analysis: FastAPI calls POST /increment-batch-analysis after processing",
+          "8. For resume comparison: FastAPI calls POST /increment-compare-resumes after processing",
+          "9. User feature usage tracked in real-time via GET /feature-usage/:email",
+          "10. Dashboard displays all feature counters for user analytics",
         ],
         endpoints: {
           checkLimit: "GET /api/auth/user-uploads/:email",
           incrementCount: "POST /api/auth/increment-upload",
+          incrementBatchAnalysis: "POST /api/auth/increment-batch-analysis",
+          incrementCompareResumes: "POST /api/auth/increment-compare-resumes",
+          featureUsage: "GET /api/auth/feature-usage/:email",
         },
       },
       cors: {
@@ -320,6 +376,76 @@ router.get("/", (req, res) => {
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         headers: ["Content-Type", "Authorization"],
+      },
+    },
+
+    operationDetails: {
+      emailValidation: {
+        pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+        requirement: "Valid email format required",
+        normalization: "All emails converted to lowercase for consistency",
+        appliedTo: [
+          "POST /increment-upload",
+          "POST /increment-batch-analysis",
+          "POST /increment-compare-resumes",
+          "GET /user-uploads/:email",
+          "GET /feature-usage/:email",
+        ],
+      },
+      atomicIncrement: {
+        description: "Database-level atomic increment prevents race conditions",
+        implementation: "sql`${column} + 1` executed at database level",
+        benefit: "Ensures accurate counting even with concurrent requests",
+        appliedTo: ["filesUploaded", "batch_analysis", "compare_resumes"],
+        concurrencyGuarantee:
+          "100% accuracy with unlimited concurrent requests",
+      },
+      errorResponses: {
+        format: {
+          success: "boolean",
+          message: "string",
+          error: "string (error code)",
+          data: "optional (varies by endpoint)",
+        },
+        commonErrors: {
+          invalidEmail: {
+            code: "INVALID_EMAIL",
+            status: 400,
+            message: "Email format validation failed",
+          },
+          userNotFound: {
+            code: "USER_NOT_FOUND",
+            status: 404,
+            message: "User with specified email does not exist",
+          },
+          internalError: {
+            code: "INTERNAL_ERROR",
+            status: 500,
+            message: "Database operation or server error",
+          },
+          unauthorized: {
+            code: "UNAUTHORIZED",
+            status: 401,
+            message: "Authentication required or token invalid",
+          },
+        },
+      },
+      responsePatterns: {
+        incrementOperations: {
+          description: "All POST endpoints return updated counters",
+          returns: [
+            "success",
+            "message",
+            "email",
+            "filesUploaded",
+            "batch_analysis",
+            "compare_resumes",
+          ],
+        },
+        getOperations: {
+          description: "All GET endpoints return current counter values",
+          returns: ["success", "message", "stats (with all counters)"],
+        },
       },
     },
 
@@ -351,13 +477,21 @@ router.get("/", (req, res) => {
           company_name: "varchar(255) not null",
           password: "varchar(255) not null (bcrypt hashed)",
           refreshToken: "varchar(255) nullable",
-          filesUploaded: "integer default 0 not null",
+          filesUploaded: "integer default 0 not null (count of uploaded files)",
+          batch_analysis:
+            "integer default 0 not null (count of batch analysis operations)",
+          compare_resumes:
+            "integer default 0 not null (count of resume comparisons)",
           created_at: "timestamp default now()",
           updated_at: "timestamp default now()",
         },
-        files: {
-          description: "File upload tracking (if implemented)",
-          note: "Additional table for detailed file metadata",
+        fieldDescriptions: {
+          filesUploaded:
+            "Tracks number of resume files uploaded by user (max 10)",
+          batch_analysis:
+            "Counts how many batch analysis operations user has performed",
+          compare_resumes:
+            "Counts how many resume comparison operations user has performed",
         },
       },
     },
@@ -367,6 +501,79 @@ router.get("/", (req, res) => {
       memoryUsage: process.memoryUsage(),
       nodeVersion: process.version,
       environment: config.nodeEnv,
+    },
+
+    featureTracking: {
+      overview:
+        "Complete analytics system for tracking user activities across the JobPsych platform",
+      counters: {
+        filesUploaded: {
+          description: "Resume files uploaded by user",
+          limit: "10 files maximum",
+          incremented: "When FastAPI successfully processes a file upload",
+          tracked: "Yes - for rate limiting and quota management",
+          resetCycle: "Never - accumulates indefinitely",
+          useCase: "Prevent users from uploading more than 10 resumes",
+        },
+        batch_analysis: {
+          description: "Batch analysis operations performed",
+          limit: "Unlimited",
+          incremented:
+            "When FastAPI completes a batch analysis of multiple resumes",
+          tracked: "Yes - for analytics and usage statistics",
+          resetCycle: "Never - accumulates indefinitely",
+          useCase: "Track feature usage for premium analytics and dashboards",
+        },
+        compare_resumes: {
+          description: "Resume comparison operations performed",
+          limit: "Unlimited",
+          incremented: "When FastAPI completes a resume comparison operation",
+          tracked: "Yes - for analytics and usage statistics",
+          resetCycle: "Never - accumulates indefinitely",
+          useCase: "Track feature usage for premium analytics and dashboards",
+        },
+      },
+      endpoints: {
+        trackUpload: {
+          method: "POST",
+          path: "/api/auth/increment-upload",
+          usedBy: "FastAPI after file upload processing",
+          atomic: true,
+          description:
+            "Increments filesUploaded counter atomically to prevent race conditions",
+        },
+        trackBatchAnalysis: {
+          method: "POST",
+          path: "/api/auth/increment-batch-analysis",
+          usedBy: "FastAPI after batch analysis completes",
+          atomic: true,
+          description:
+            "Increments batch_analysis counter atomically for analytics",
+        },
+        trackCompareResumes: {
+          method: "POST",
+          path: "/api/auth/increment-compare-resumes",
+          usedBy: "FastAPI after resume comparison completes",
+          atomic: true,
+          description:
+            "Increments compare_resumes counter atomically for analytics",
+        },
+        retrieveStats: {
+          method: "GET",
+          path: "/api/auth/feature-usage/:email",
+          usedBy: "Frontend dashboard, analytics, and FastAPI quota checks",
+          atomic: false,
+          description: "Retrieves consolidated feature usage statistics",
+        },
+      },
+      atomicOperations: {
+        description:
+          "All increment operations use database-level atomic increments",
+        benefit:
+          "Prevents race conditions when multiple requests happen simultaneously",
+        sqlPattern: "sql`${column} + 1` ensures database handles the increment",
+        concurrencySafe: true,
+      },
     },
 
     documentation:
