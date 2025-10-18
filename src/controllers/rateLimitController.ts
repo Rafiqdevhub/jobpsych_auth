@@ -356,7 +356,7 @@ export const incrementBatchAnalysis = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { email } = req.body;
+    const { email, count = 1 } = req.body;
 
     // Validate email
     if (!email) {
@@ -379,13 +379,23 @@ export const incrementBatchAnalysis = async (
       return;
     }
 
+    // Validate count
+    if (typeof count !== "number" || count < 1) {
+      res.status(400).json({
+        success: false,
+        message: "Count must be a positive number",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
     const normalizedEmail = email.toLowerCase();
 
-    // Increment batch analysis count atomically
+    // ✅ Increment batch analysis count by 'count' parameter (not just 1)
     const result = await db
       .update(users)
       .set({
-        batch_analysis: sql`${users.batch_analysis} + 1`,
+        batch_analysis: sql`${users.batch_analysis} + ${count}`,
         updated_at: new Date(),
       })
       .where(eq(users.email, normalizedEmail))
@@ -406,12 +416,13 @@ export const incrementBatchAnalysis = async (
 
     const updatedUser = result[0];
 
-    // Return success response
+    // ✅ Return success response with count confirmation
     res.status(200).json({
       success: true,
       message: "Batch analysis count incremented successfully",
       email: updatedUser.email,
       batch_analysis: updatedUser.batch_analysis,
+      incrementedBy: count, // ✅ Confirm how much was added
     });
   } catch (error) {
     console.error("Increment batch analysis error:", error);
@@ -435,7 +446,7 @@ export const incrementCompareResumes = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { email } = req.body;
+    const { email, count = 1 } = req.body;
 
     // Validate email
     if (!email) {
@@ -458,13 +469,23 @@ export const incrementCompareResumes = async (
       return;
     }
 
+    // Validate count
+    if (typeof count !== "number" || count < 1) {
+      res.status(400).json({
+        success: false,
+        message: "Count must be a positive number",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
     const normalizedEmail = email.toLowerCase();
 
-    // Increment compare resumes count atomically
+    // ✅ Increment compare resumes count by 'count' parameter (not just 1)
     const result = await db
       .update(users)
       .set({
-        compare_resumes: sql`${users.compare_resumes} + 1`,
+        compare_resumes: sql`${users.compare_resumes} + ${count}`,
         updated_at: new Date(),
       })
       .where(eq(users.email, normalizedEmail))
@@ -477,7 +498,7 @@ export const incrementCompareResumes = async (
     if (!result || result.length === 0) {
       res.status(500).json({
         success: false,
-        message: "Failed to increment compare resumes count",
+        message: "Failed to increment compare resumes counter",
         error: "INCREMENT_FAILED",
       });
       return;
@@ -485,12 +506,13 @@ export const incrementCompareResumes = async (
 
     const updatedUser = result[0];
 
-    // Return success response
+    // ✅ Return success response with count confirmation
     res.status(200).json({
       success: true,
       message: "Compare resumes count incremented successfully",
       email: updatedUser.email,
       compare_resumes: updatedUser.compare_resumes,
+      incrementedBy: count, // ✅ Confirm how much was added
     });
   } catch (error) {
     console.error("Increment compare resumes error:", error);

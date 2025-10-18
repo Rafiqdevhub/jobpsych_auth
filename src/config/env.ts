@@ -28,7 +28,7 @@ export const config = {
       process.env.JWT_SECRET ||
       "access-secret-key",
     refreshSecret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "1d",
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     // Legacy support
     secret: process.env.JWT_SECRET || process.env.JWT_ACCESS_SECRET,
