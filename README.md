@@ -88,9 +88,56 @@ NODE_ENV=development
 
 # CORS Configuration (comma-separated list of allowed origins)
 CORS_ORIGINS=http://localhost:3000,https://yourdomain.vercel.app
+
+# Email Configuration (for email verification)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+EMAIL_FROM=noreply@jobpsych.com
+FRONTEND_URL=http://localhost:3000
+VERIFICATION_EXPIRY=86400000
 ```
 
-### 3. NeonDB Setup
+### 4. Email Setup (for Email Verification)
+
+The application includes email verification for new user registrations. Configure SMTP settings:
+
+#### Gmail Setup
+
+1. **Enable 2-Factor Authentication** on your Gmail account
+2. **Generate App Password**:
+   - Go to [Google Account Settings](https://myaccount.google.com/security)
+   - Enable 2-Step Verification
+   - Generate App Password for "Mail"
+3. **Configure Environment Variables**:
+
+   ```bash
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your-gmail@gmail.com
+   SMTP_PASS=your-16-character-app-password
+   EMAIL_FROM=noreply@yourdomain.com
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+#### Other Email Providers
+
+- **Outlook/Hotmail**: `SMTP_HOST=smtp-mail.outlook.com`
+- **Yahoo**: `SMTP_HOST=smtp.mail.yahoo.com`
+- **Custom SMTP**: Use your provider's SMTP settings
+
+#### Testing Email Configuration
+
+```bash
+# Test email connection (add this to your code temporarily)
+import { testEmailConnection } from './src/services/emailService';
+testEmailConnection().then(result => console.log('Email test:', result));
+```
+
+### 5. NeonDB Setup
 
 ```bash
 # Create a NeonDB account at https://neon.tech

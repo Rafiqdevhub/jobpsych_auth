@@ -3,11 +3,38 @@ import {
   register,
   login,
   updateProfile,
+  verifyEmail,
+  resendVerification,
 } from "../../src/controllers/authController";
 
 // Mock dependencies
 jest.mock("../../src/utils/auth");
 jest.mock("../../src/db");
+jest.mock("../../src/services/emailService");
+jest.mock("../../src/utils/emailVerification");
+
+import { sendVerificationEmail } from "../../src/services/emailService";
+import {
+  generateVerificationToken,
+  generateVerificationExpiry,
+  isTokenExpired,
+} from "../../src/utils/emailVerification";
+
+// Mock implementations
+const mockSendVerificationEmail = sendVerificationEmail as jest.MockedFunction<
+  typeof sendVerificationEmail
+>;
+const mockGenerateVerificationToken =
+  generateVerificationToken as jest.MockedFunction<
+    typeof generateVerificationToken
+  >;
+const mockGenerateVerificationExpiry =
+  generateVerificationExpiry as jest.MockedFunction<
+    typeof generateVerificationExpiry
+  >;
+const mockIsTokenExpired = isTokenExpired as jest.MockedFunction<
+  typeof isTokenExpired
+>;
 
 describe("Auth Controller", () => {
   let mockRequest: Partial<Request>;
@@ -23,6 +50,14 @@ describe("Auth Controller", () => {
   });
 
   describe("register", () => {
+    beforeEach(() => {
+      mockGenerateVerificationToken.mockReturnValue("test-verification-token");
+      mockGenerateVerificationExpiry.mockReturnValue(
+        new Date(Date.now() + 24 * 60 * 60 * 1000)
+      );
+      mockSendVerificationEmail.mockResolvedValue(true);
+    });
+
     it("should return 400 for missing required fields", async () => {
       mockRequest.body = { email: "test@example.com" };
 
@@ -53,6 +88,39 @@ describe("Auth Controller", () => {
         error: "An unexpected error occurred during registration",
       });
     });
+
+    it("should successfully register user and send verification email", async () => {
+      mockRequest.body = {
+        name: "Test User",
+        email: "test@example.com",
+        password: "Test123!",
+        company_name: "Test Company",
+      };
+
+      await register(mockRequest as Request, mockResponse as Response);
+
+      expect(mockSendVerificationEmail).toHaveBeenCalledWith(
+        "test@example.com",
+        "Test User",
+        "test-verification-token"
+      );
+      expect(mockResponse.status).toHaveBeenCalledWith(201);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message:
+          "Registration successful! Please check your email to verify your account.",
+        data: {
+          user: {
+            id: expect.any(String),
+            name: "Test User",
+            email: "test@example.com",
+            company_name: "Test Company",
+            emailVerified: false,
+          },
+          requiresVerification: true,
+        },
+      });
+    });
   });
 
   describe("login", () => {
@@ -75,6 +143,24 @@ describe("Auth Controller", () => {
       await login(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
+    });
+
+    it("should return 403 for unverified email", async () => {
+      mockRequest.body = {
+        email: "unverified@example.com",
+        password: "test123",
+      };
+
+      await login(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(403);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Email not verified",
+        error:
+          "Please verify your email address before logging in. Check your email for the verification link.",
+        requiresVerification: true,
+      });
     });
   });
 
@@ -430,6 +516,190 @@ describe("Auth Controller", () => {
           securityNote:
             "Password has been changed. You have been logged out from other devices.",
         },
+      });
+    });
+  });
+
+  describe("verifyEmail", () => {
+    beforeEach(() => {
+      mockGenerateVerificationToken.mockReturnValue("test-verification-token");
+      mockGenerateVerificationExpiry.mockReturnValue(
+        new Date(Date.now() + 24 * 60 * 60 * 1000)
+      );
+      mockIsTokenExpired.mockReturnValue(false);
+      mockSendVerificationEmail.mockResolvedValue(true);
+    });
+
+    it("should return 400 for missing token", async () => {
+      mockRequest.body = {};
+
+      await verifyEmail(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Validation Error",
+        error: "Verification token is required",
+      });
+    });
+
+    it("should return 400 for invalid token", async () => {
+      mockRequest.body = { token: "invalid-token" };
+
+      await verifyEmail(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid token",
+        error: "Verification token is invalid or has already been used",
+      });
+    });
+
+    it("should return 400 for expired token", async () => {
+      mockIsTokenExpired.mockReturnValue(true);
+      mockRequest.body = { token: "expired-token" };
+
+      await verifyEmail(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Token expired",
+        error:
+          "Verification token has expired. Please request a new verification email.",
+      });
+    });
+
+    it("should return 400 for already verified email", async () => {
+      mockRequest.body = { token: "already-verified-token" };
+
+      await verifyEmail(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Already verified",
+        error: "This email address has already been verified",
+      });
+    });
+
+    it("should successfully verify email and return tokens", async () => {
+      mockRequest.body = { token: "valid-token" };
+
+      await verifyEmail(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Email verified successfully! You are now logged in.",
+        data: expect.objectContaining({
+          accessToken: expect.any(String),
+          user: expect.objectContaining({
+            id: expect.any(String),
+            name: expect.any(String),
+            email: expect.any(String),
+            emailVerified: true,
+          }),
+        }),
+      });
+    });
+  });
+
+  describe("resendVerification", () => {
+    beforeEach(() => {
+      mockGenerateVerificationToken.mockReturnValue("new-verification-token");
+      mockGenerateVerificationExpiry.mockReturnValue(
+        new Date(Date.now() + 24 * 60 * 60 * 1000)
+      );
+      mockSendVerificationEmail.mockResolvedValue(true);
+    });
+
+    it("should return 400 for missing email", async () => {
+      mockRequest.body = {};
+
+      await resendVerification(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Validation Error",
+        error: "Email address is required",
+      });
+    });
+
+    it("should return 404 for non-existent user", async () => {
+      mockRequest.body = { email: "nonexistent@example.com" };
+
+      await resendVerification(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(404);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "User not found",
+        error: "No account found with this email address",
+      });
+    });
+
+    it("should return 400 for already verified email", async () => {
+      mockRequest.body = { email: "already-verified@example.com" };
+
+      await resendVerification(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Already verified",
+        error: "This email address has already been verified",
+      });
+    });
+
+    it("should successfully resend verification email", async () => {
+      mockRequest.body = { email: "unverified@example.com" };
+
+      await resendVerification(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockSendVerificationEmail).toHaveBeenCalledWith(
+        "unverified@example.com",
+        expect.any(String),
+        "new-verification-token"
+      );
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message: "Verification email sent successfully",
+        data: {
+          email: "unverified@example.com",
+        },
+      });
+    });
+
+    it("should return 500 when email sending fails", async () => {
+      mockSendVerificationEmail.mockResolvedValue(false);
+      mockRequest.body = { email: "unverified@example.com" };
+
+      await resendVerification(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Email sending failed",
+        error: "Failed to send verification email. Please try again later.",
       });
     });
   });

@@ -61,6 +61,7 @@
     "@types/cors": "^2.8.19",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.12",
+    "@types/nodemailer": "^7.0.2",
     "autocannon": "^7.15.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
@@ -69,6 +70,7 @@
     "drizzle-orm": "^0.44.5",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "nodemailer": "^7.0.9"
   }
 }

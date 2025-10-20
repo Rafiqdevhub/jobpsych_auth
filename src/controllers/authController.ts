@@ -16,10 +16,18 @@ import {
   RegisterRequest,
   LoginRequest,
   ResetPasswordRequest,
+  VerifyEmailRequest,
+  ResendVerificationRequest,
   AuthResponse,
   ChangePasswordRequest,
   UpdateProfileRequest,
 } from "../types/auth";
+import { sendVerificationEmail } from "../services/emailService";
+import {
+  generateVerificationToken,
+  generateVerificationExpiry,
+  isTokenExpired,
+} from "../utils/emailVerification";
 
 const setRefreshTokenCookie = (res: Response, token: string): void => {
   res.cookie("refreshToken", token, {
@@ -79,8 +87,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const hashedPassword = await hashPassword(password);
-    const refreshToken = generateRefreshToken();
-    const hashedRefreshToken = await hashRefreshToken(refreshToken);
+    const verificationToken = generateVerificationToken();
+    const verificationExpiry = generateVerificationExpiry();
 
     let newUser;
     try {
@@ -91,10 +99,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           email: email.toLowerCase(),
           company_name: company,
           password: hashedPassword,
-          refreshToken: hashedRefreshToken,
           filesUploaded: 0,
           batch_analysis: 0,
           compare_resumes: 0,
+          emailVerified: false,
+          verificationToken,
+          verificationExpires: verificationExpiry,
         })
         .returning({
           id: users.id,
@@ -140,26 +150,32 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       res.status(500).json(response);
       return;
     }
-    const accessToken = generateAccessToken({
-      userId: newUser[0].id.toString(),
-      email: newUser[0].email,
-    });
-    setRefreshTokenCookie(res, refreshToken);
+
+    // Send verification email
+    const emailSent = await sendVerificationEmail(
+      newUser[0].email,
+      newUser[0].name,
+      verificationToken
+    );
+
+    if (!emailSent) {
+      console.error("Failed to send verification email to:", newUser[0].email);
+      // Don't fail registration if email fails, but log it
+    }
 
     const response: AuthResponse = {
       success: true,
-      message: "User registered successfully",
+      message:
+        "Registration successful! Please check your email to verify your account.",
       data: {
-        accessToken,
         user: {
           id: newUser[0].id.toString(),
           name: newUser[0].name,
           email: newUser[0].email,
           company_name: newUser[0].company_name,
-          filesUploaded: newUser[0].filesUploaded,
-          batch_analysis: newUser[0].batch_analysis,
-          compare_resumes: newUser[0].compare_resumes,
+          emailVerified: false,
         },
+        requiresVerification: true,
       },
     };
     res.status(201).json(response);
@@ -214,6 +230,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       res.status(401).json(response);
       return;
     }
+
+    // Check if email is verified
+    if (!user.emailVerified) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Email not verified",
+        error:
+          "Please verify your email address before logging in. Check your email for the verification link.",
+        requiresVerification: true,
+      };
+      res.status(403).json(response);
+      return;
+    }
+
     const accessToken = generateAccessToken({
       userId: user.id.toString(),
       email: user.email,
@@ -239,6 +269,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           filesUploaded: user.filesUploaded,
           batch_analysis: user.batch_analysis,
           compare_resumes: user.compare_resumes,
+          emailVerified: user.emailVerified,
         },
       },
     };
@@ -249,6 +280,216 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       success: false,
       message: "Internal Server Error",
       error: "An unexpected error occurred during login",
+    };
+    res.status(500).json(response);
+  }
+};
+
+export const verifyEmail = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { token }: VerifyEmailRequest = req.body;
+
+    if (!token) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation Error",
+        error: "Verification token is required",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Find user with this verification token
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.verificationToken, token))
+      .limit(1);
+
+    if (userResult.length === 0) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Invalid token",
+        error: "Verification token is invalid or has already been used",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const user = userResult[0];
+
+    // Check if token is expired
+    if (isTokenExpired(user.verificationExpires)) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Token expired",
+        error:
+          "Verification token has expired. Please request a new verification email.",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Check if already verified
+    if (user.emailVerified) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Already verified",
+        error: "This email address has already been verified",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Update user as verified and clear verification data
+    await db
+      .update(users)
+      .set({
+        emailVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+      })
+      .where(eq(users.id, user.id));
+
+    // Generate tokens for immediate login
+    const accessToken = generateAccessToken({
+      userId: user.id.toString(),
+      email: user.email,
+    });
+    const refreshToken = generateRefreshToken();
+    const hashedRefreshToken = await hashRefreshToken(refreshToken);
+
+    await db
+      .update(users)
+      .set({ refreshToken: hashedRefreshToken })
+      .where(eq(users.id, user.id));
+
+    setRefreshTokenCookie(res, refreshToken);
+
+    const response: AuthResponse = {
+      success: true,
+      message: "Email verified successfully! You are now logged in.",
+      data: {
+        accessToken,
+        user: {
+          id: user.id.toString(),
+          name: user.name,
+          email: user.email,
+          company_name: user.company_name,
+          filesUploaded: user.filesUploaded,
+          batch_analysis: user.batch_analysis,
+          compare_resumes: user.compare_resumes,
+          emailVerified: true,
+        },
+      },
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Email verification error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during email verification",
+    };
+    res.status(500).json(response);
+  }
+};
+
+export const resendVerification = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email }: ResendVerificationRequest = req.body;
+
+    if (!email) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation Error",
+        error: "Email address is required",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Find user by email
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (userResult.length === 0) {
+      const response: AuthResponse = {
+        success: false,
+        message: "User not found",
+        error: "No account found with this email address",
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    const user = userResult[0];
+
+    // Check if already verified
+    if (user.emailVerified) {
+      const response: AuthResponse = {
+        success: false,
+        message: "Already verified",
+        error: "This email address has already been verified",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Generate new verification token and expiry
+    const verificationToken = generateVerificationToken();
+    const verificationExpiry = generateVerificationExpiry();
+
+    // Update user with new verification data
+    await db
+      .update(users)
+      .set({
+        verificationToken,
+        verificationExpires: verificationExpiry,
+      })
+      .where(eq(users.id, user.id));
+
+    // Send new verification email
+    const emailSent = await sendVerificationEmail(
+      user.email,
+      user.name,
+      verificationToken
+    );
+
+    if (!emailSent) {
+      console.error("Failed to send verification email to:", user.email);
+      const response: AuthResponse = {
+        success: false,
+        message: "Email sending failed",
+        error: "Failed to send verification email. Please try again later.",
+      };
+      res.status(500).json(response);
+      return;
+    }
+
+    const response: AuthResponse = {
+      success: true,
+      message: "Verification email sent successfully",
+      data: {
+        email: user.email,
+      },
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal Server Error",
+      error: "An unexpected error occurred while sending verification email",
     };
     res.status(500).json(response);
   }

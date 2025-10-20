@@ -16,6 +16,14 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+export interface VerifyEmailRequest {
+  token: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
+}
+
 export interface RefreshTokenRequest {
   // Refresh token comes from HttpOnly cookie
 }
@@ -25,6 +33,7 @@ export interface AuthResponse {
   message: string;
   data?: any;
   error?: string;
+  requiresVerification?: boolean;
 }
 
 export interface TokenPayload {
@@ -42,6 +51,7 @@ export interface TokenResponse {
     filesUploaded: number;
     batch_analysis: number;
     compare_resumes: number;
+    emailVerified: boolean;
   };
 }
 

@@ -29,6 +29,13 @@
       "when": 1760636026950,
       "tag": "0003_special_vengeance",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1760936724488,
+      "tag": "0004_white_giant_man",
+      "breakpoints": true
     }
   ]
 }

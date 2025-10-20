@@ -11,10 +11,13 @@ import { config } from "./config/env";
 dotenv.config();
 
 const app = express();
-
 app.disable("x-powered-by");
-
 app.use(morgan("dev"));
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
 app.use(
   cors({
@@ -24,9 +27,7 @@ app.use(
 );
 
 app.use(cookieParser());
-
 app.use(express.json());
-
 app.use("/", infoRoute);
 
 app.get("/health", (req, res) => {
@@ -35,7 +36,7 @@ app.get("/health", (req, res) => {
     service: "jobpsych-auth-api",
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    version: "2.0.0",
+    version: "3.0.0",
     environment: config.nodeEnv,
     database: "connected",
     features: {

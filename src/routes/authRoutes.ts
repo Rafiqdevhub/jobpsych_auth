@@ -7,20 +7,30 @@ import {
   logout,
   getProfile,
   updateProfile,
+  verifyEmail,
+  resendVerification,
 } from "../controllers/authController";
 import { verifyToken, getJWTInfo } from "../controllers/jwtController";
 import { authenticate } from "../middleware/auth";
+import { requireEmailVerification } from "../middleware/emailVerification";
 
 const router = express.Router();
 
 // Authentication routes
 router.post("/register", register);
 router.post("/login", login);
+router.post("/verify-email", verifyEmail);
+router.post("/resend-verification", resendVerification);
 router.post("/reset-password", resetPassword);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
-router.put("/update-profile", authenticate, updateProfile);
-router.get("/profile", authenticate, getProfile);
+router.put(
+  "/update-profile",
+  authenticate,
+  requireEmailVerification,
+  updateProfile
+);
+router.get("/profile", authenticate, requireEmailVerification, getProfile);
 
 //  (for cross-service communication)
 router.post("/verify-token", verifyToken);
