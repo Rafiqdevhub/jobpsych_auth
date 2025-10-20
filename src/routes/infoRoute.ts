@@ -6,9 +6,9 @@ const router = express.Router();
 router.get("/", (req, res) => {
   res.json({
     api: "JobPsych Auth API",
-    version: "3.0.0",
+    version: "3.1.0",
     description:
-      "Complete authentication and rate limiting system for JobPsych platform with user management, JWT authentication and FastAPI integration.",
+      "Complete authentication, email verification, and rate limiting system for JobPsych platform with user management, JWT authentication, secure email verification, and FastAPI integration.",
     status: "Server is running",
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
@@ -32,6 +32,11 @@ router.get("/", (req, res) => {
       "Secure logout that clears both client and server tokens",
       "Password reset functionality with secure validation",
       "Protected profile endpoint with user data",
+      "Email verification system with secure token-based verification",
+      "Automatic verification email sending with modern HTML templates",
+      "Email verification middleware for protected routes",
+      "Resend verification email functionality",
+      "Single-use verification tokens with 24-hour expiry",
       "Rate limiting for file uploads (10 files per user)",
       "Batch analysis tracking - counts batch resume analysis operations",
       "Resume comparison tracking - counts resume comparison operations",
@@ -69,6 +74,182 @@ router.get("/", (req, res) => {
       errorHandling: "Production-safe error messages",
     },
 
+    emailVerification: {
+      overview:
+        "Complete email verification system ensuring user authenticity and security",
+      features: [
+        "Automatic verification email on registration",
+        "Secure token-based verification (32-byte cryptographically secure)",
+        "24-hour token expiry with automatic cleanup",
+        "Single-use tokens (invalidated after use)",
+        "Modern responsive HTML email templates",
+        "Copy-to-clipboard functionality in emails",
+        "Email verification middleware for protected routes",
+        "Resend verification email functionality",
+        "Rate limiting to prevent abuse",
+        "Comprehensive error handling and user feedback",
+      ],
+      flow: {
+        registration: [
+          "1. User submits registration form with name, email, password, company",
+          "2. System validates input and creates user account (emailVerified: false)",
+          "3. System generates cryptographically secure verification token (32 bytes)",
+          "4. System sets verification expiry (24 hours from creation)",
+          "5. System sends beautiful HTML verification email with token URL",
+          "6. User account created but marked as unverified",
+          "7. User receives JWT tokens but has limited access",
+        ],
+        verification: [
+          "1. User clicks verification link in email or pastes URL manually",
+          "2. Frontend sends POST /verify-email with token",
+          "3. System validates token exists and hasn't expired",
+          "4. System finds user by verification token",
+          "5. System marks user as emailVerified: true",
+          "6. System clears verification token and expiry (cleanup)",
+          "7. System returns success response",
+          "8. User now has full access to all features",
+        ],
+        middlewareProtection: [
+          "1. Protected routes use requireEmailVerification middleware",
+          "2. Middleware checks if user is authenticated",
+          "3. Middleware queries database for emailVerified status",
+          "4. If not verified, returns 403 with verification required message",
+          "5. If verified, allows request to proceed",
+          "6. Applied to profile, update-profile, and other sensitive endpoints",
+        ],
+        resendFlow: [
+          "1. User requests new verification email",
+          "2. System validates email exists in database",
+          "3. System generates new verification token",
+          "4. System updates verification expiry (24 hours)",
+          "5. System sends new verification email",
+          "6. User receives fresh verification link",
+        ],
+      },
+      security: {
+        tokenGeneration:
+          "crypto.randomBytes(32).toString('hex') - 64 character secure token",
+        tokenStorage: "Database stored as varchar(255) with proper indexing",
+        tokenExpiry: "24 hours from generation, enforced at verification time",
+        singleUse:
+          "Tokens invalidated immediately after successful verification",
+        rateLimiting: "Resend verification limited to prevent email spam",
+        cleanup: "Expired tokens remain in DB but are non-functional",
+        emailSecurity: "No sensitive data in verification URLs",
+        httpsRequired:
+          "Production deployment requires HTTPS for secure token transmission",
+      },
+      emailService: {
+        provider: "Nodemailer with SMTP configuration",
+        templates: "Modern responsive HTML with gradient design and emojis",
+        features:
+          "Copy-to-clipboard button, fallback URL display, mobile responsive",
+        smtpConfig: {
+          host: "Configured via environment variables",
+          port: "587 (TLS) or 465 (SSL)",
+          secure: "TLS preferred for security",
+          auth: "Username and password from environment",
+        },
+        templateFeatures: [
+          "Beautiful gradient header with logo",
+          "Responsive design for all devices",
+          "Copy-to-clipboard JavaScript functionality",
+          "Fallback URL display for email clients without JS",
+          "Professional styling with modern fonts",
+          "Clear call-to-action buttons",
+          "Security notices and expiry warnings",
+          "Company branding and contact information",
+        ],
+      },
+      middleware: {
+        requireEmailVerification: {
+          purpose: "Protects sensitive routes from unverified users",
+          implementation:
+            "Express middleware function executed after authentication",
+          databaseCheck: "Queries users table for emailVerified boolean field",
+          errorResponse: {
+            status: 403,
+            message: "Email verification required",
+            requiresVerification: true,
+          },
+          appliedRoutes: [
+            "GET /api/auth/profile",
+            "PUT /api/auth/update-profile",
+            "Any future sensitive endpoints",
+          ],
+        },
+      },
+      database: {
+        schema: {
+          emailVerified: "boolean default false not null - verification status",
+          verificationToken: "varchar(255) - stores current verification token",
+          verificationExpires: "timestamp - token expiry date/time",
+        },
+        migration: "Added in migration 0004_white_giant_man.sql",
+        indexing: "verificationToken should be indexed for performance",
+        cleanup: "Expired tokens can be cleaned up periodically (optional)",
+      },
+      configuration: {
+        environmentVariables: {
+          EMAIL_HOST: "SMTP server hostname",
+          EMAIL_PORT: "SMTP server port (587/465)",
+          EMAIL_SECURE: "Use TLS/SSL (true/false)",
+          EMAIL_USER: "SMTP authentication username",
+          EMAIL_PASS: "SMTP authentication password",
+          EMAIL_FROM: "Sender email address",
+          FRONTEND_URL: "Frontend URL for verification links",
+        },
+        tokenSettings: {
+          VERIFICATION_TOKEN_LENGTH: "32 bytes (64 hex characters)",
+          VERIFICATION_EXPIRY_HOURS: "24 hours",
+          TOKEN_CLEANUP: "Automatic on verification",
+        },
+      },
+      errorHandling: {
+        tokenExpired: {
+          code: "TOKEN_EXPIRED",
+          status: 400,
+          message: "Verification token has expired",
+          suggestion: "Request new verification email",
+        },
+        tokenInvalid: {
+          code: "TOKEN_INVALID",
+          status: 400,
+          message: "Invalid verification token",
+          suggestion: "Check token or request new verification email",
+        },
+        emailNotFound: {
+          code: "EMAIL_NOT_FOUND",
+          status: 404,
+          message: "No account found with this email address",
+          suggestion: "Check email address or register new account",
+        },
+        alreadyVerified: {
+          code: "ALREADY_VERIFIED",
+          status: 400,
+          message: "Email is already verified",
+          suggestion: "You can now access all features",
+        },
+        verificationRequired: {
+          code: "VERIFICATION_REQUIRED",
+          status: 403,
+          message: "Email verification required",
+          requiresVerification: true,
+          suggestion: "Check your email for verification link",
+        },
+      },
+      testing: {
+        unitTests:
+          "authController.test.ts includes comprehensive email verification tests",
+        testCoverage:
+          "Token generation, expiry validation, email sending, middleware",
+        mockServices:
+          "Email service mocked to prevent actual email sending in tests",
+        integrationTests:
+          "Full verification flow testing with database state validation",
+      },
+    },
+
     endpoints: [
       {
         category: "Authentication",
@@ -82,8 +263,10 @@ router.get("/", (req, res) => {
           password: "string (required, min 6 chars)",
           company_name: "string (required)",
         },
-        response: "User data + access token + refresh token cookie",
-        notes: "Creates user account and logs them in immediately",
+        response:
+          "User data + access token + refresh token cookie + verification email sent",
+        notes:
+          "Creates user account, sends verification email, and logs them in immediately. Email verification required for full access.",
       },
       {
         category: "Authentication",
@@ -97,6 +280,41 @@ router.get("/", (req, res) => {
         },
         response: "User data + access token + refresh token cookie",
         notes: "Sets HttpOnly refresh token cookie for 7 days",
+      },
+      {
+        category: "Email Verification",
+        method: "POST",
+        path: "/api/auth/verify-email",
+        description: "Verify user's email address with verification token",
+        authentication: "None",
+        requestBody: {
+          token: "string (required) - Verification token from email",
+        },
+        response: {
+          success: "boolean",
+          message: "string",
+          email: "string",
+          verified: "boolean",
+        },
+        notes:
+          "Validates token, marks email as verified, clears verification data. Token expires in 24 hours and is single-use.",
+      },
+      {
+        category: "Email Verification",
+        method: "POST",
+        path: "/api/auth/resend-verification",
+        description: "Resend verification email to user",
+        authentication: "None",
+        requestBody: {
+          email: "string (required) - User's email address",
+        },
+        response: {
+          success: "boolean",
+          message: "string",
+          email: "string",
+        },
+        notes:
+          "Generates new verification token, updates expiry, sends new verification email. Rate limited to prevent abuse.",
       },
       {
         category: "Authentication",
@@ -137,7 +355,8 @@ router.get("/", (req, res) => {
         path: "/api/auth/update-profile",
         description:
           "Update authenticated user's profile (name and/or password)",
-        authentication: "Access token (required)",
+        authentication:
+          "Access token (required) + Email verification (required)",
         requestBody: {
           name: "string (optional) - Update user's name",
           currentPassword: "string (required if updating password)",
@@ -159,18 +378,20 @@ router.get("/", (req, res) => {
           },
         },
         notes:
-          "Update name, password, or both. Password changes require current password verification and log out other devices.",
+          "Update name, password, or both. Password changes require current password verification and log out other devices. Requires email verification.",
       },
       {
         category: "Authentication",
         method: "GET",
         path: "/api/auth/profile",
         description: "Get authenticated user's profile data",
-        authentication: "Access token (required)",
+        authentication:
+          "Access token (required) + Email verification (required)",
         requestBody: "None",
         response:
           "User profile data (id, name, email, company_name, filesUploaded, createdAt)",
-        notes: "Returns complete user profile information",
+        notes:
+          "Returns complete user profile information. Requires email verification.",
       },
       {
         category: "Rate Limiting",
@@ -482,6 +703,11 @@ router.get("/", (req, res) => {
             "integer default 0 not null (count of batch analysis operations)",
           compare_resumes:
             "integer default 0 not null (count of resume comparisons)",
+          emailVerified:
+            "boolean default false not null (email verification status)",
+          verificationToken:
+            "varchar(255) nullable (current verification token)",
+          verificationExpires: "timestamp nullable (token expiry date/time)",
           created_at: "timestamp default now()",
           updated_at: "timestamp default now()",
         },
@@ -492,6 +718,12 @@ router.get("/", (req, res) => {
             "Counts how many batch analysis operations user has performed",
           compare_resumes:
             "Counts how many resume comparison operations user has performed",
+          emailVerified:
+            "Boolean flag indicating if user has verified their email address",
+          verificationToken:
+            "Stores the current email verification token (32-byte secure random)",
+          verificationExpires:
+            "Timestamp when the current verification token expires (24 hours)",
         },
       },
     },
@@ -577,7 +809,7 @@ router.get("/", (req, res) => {
     },
 
     documentation:
-      "Complete authentication and rate limiting system for JobPsych platform. Features JWT authentication, file upload tracking, FastAPI integration, and comprehensive security measures. Built with TypeScript, Express.js, Drizzle ORM, and PostgreSQL.",
+      "Complete authentication, email verification, and rate limiting system for JobPsych platform. Features JWT authentication with email verification, secure token-based verification, modern HTML email templates, file upload tracking, FastAPI integration, and comprehensive security measures. Built with TypeScript, Express.js, Drizzle ORM, and PostgreSQL.",
   });
 });
 
