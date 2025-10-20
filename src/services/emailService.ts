@@ -237,39 +237,6 @@ const getVerificationEmailTemplate = (
             margin-bottom: 15px;
         }
 
-        .copy-button {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: #ffffff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer !important;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .copy-button::before {
-            content: '📋';
-            margin-right: 8px;
-        }
-
-        .copy-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
-        }
-
-        .copy-button.copied {
-            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
-        }
-
-        .copy-button.copied::before {
-            content: '✅';
-        }
-
         .footer {
             background: #f8fafc;
             padding: 30px 40px;
@@ -343,61 +310,6 @@ const getVerificationEmailTemplate = (
             }
         }
     </style>
-    <script>
-        async function copyToClipboard(button) {
-            const text = button.getAttribute('data-url');
-
-            try {
-                // Try modern clipboard API first
-                if (navigator.clipboard && window.isSecureContext) {
-                    await navigator.clipboard.writeText(text);
-                } else {
-                    // Fallback for older browsers or non-secure contexts
-                    const textarea = document.createElement('textarea');
-                    textarea.value = text;
-                    textarea.style.position = 'fixed';
-                    textarea.style.left = '-999999px';
-                    textarea.style.top = '-999999px';
-                    document.body.appendChild(textarea);
-                    textarea.focus();
-                    textarea.select();
-
-                    const successful = document.execCommand('copy');
-                    document.body.removeChild(textarea);
-
-                    if (!successful) {
-                        throw new Error('Fallback copy method failed');
-                    }
-                }
-
-                // Success feedback
-                button.textContent = '✅ Copied!';
-                button.classList.add('copied');
-
-                // Reset button after 2 seconds
-                setTimeout(function() {
-                    button.textContent = '📋 Copy Link';
-                    button.classList.remove('copied');
-                }, 2000);
-
-            } catch (err) {
-                console.error('Failed to copy: ', err);
-
-                // Show error feedback
-                button.textContent = '❌ Failed to copy';
-                button.classList.add('copied');
-
-                // Reset button after 3 seconds
-                setTimeout(function() {
-                    button.textContent = '📋 Copy Link';
-                    button.classList.remove('copied');
-                }, 3000);
-
-                // Also show alert as fallback
-                alert('Copy not supported in this browser. Please manually copy the link above.');
-            }
-        }
-    </script>
 </head>
 <body>
     <div class="container">
@@ -425,12 +337,6 @@ const getVerificationEmailTemplate = (
             <p class="message">
                 If the button doesn't work, copy and paste this link into your browser:
             </p>
-
-            <div class="code-block">
-                <div class="code-label">Verification Link</div>
-                <div class="code-url">${verificationUrl}</div>
-                <button class="copy-button" id="copyBtn" data-url="${verificationUrl}" onclick="copyToClipboard(this)">Copy Link</button>
-            </div>
 
             <p class="message">
                 Didn't create an account? No worries! You can safely ignore this email.
