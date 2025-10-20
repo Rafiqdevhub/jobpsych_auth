@@ -17,10 +17,11 @@ export const users = pgTable("users", {
   filesUploaded: integer("files_uploaded").default(0).notNull(),
   batch_analysis: integer("batch_analysis").default(0).notNull(),
   compare_resumes: integer("compare_resumes").default(0).notNull(),
-  // Email verification fields
   emailVerified: boolean("email_verified").default(false).notNull(),
   verificationToken: varchar("verification_token", { length: 255 }),
   verificationExpires: timestamp("verification_expires"),
+  resetToken: varchar("reset_token", { length: 255 }),
+  resetTokenExpires: timestamp("reset_token_expires"),
   created_at: timestamp().defaultNow().notNull(),
   updated_at: timestamp().defaultNow().notNull(),
 });

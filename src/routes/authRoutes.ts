@@ -9,6 +9,8 @@ import {
   updateProfile,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPasswordWithToken,
 } from "../controllers/authController";
 import { verifyToken, getJWTInfo } from "../controllers/jwtController";
 import { authenticate } from "../middleware/auth";
@@ -22,6 +24,8 @@ router.post("/login", login);
 router.post("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerification);
 router.post("/reset-password", resetPassword);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password-with-token", resetPasswordWithToken);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
 router.put(
@@ -40,7 +44,7 @@ router.get("/jwt-info", getJWTInfo);
 router.get("/info", (req, res) => {
   res.json({
     api: "JobPsych Auth API",
-    version: "3.0.0",
+    version: "3.1.0",
     status: "Server is running",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",

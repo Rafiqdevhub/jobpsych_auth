@@ -5,6 +5,8 @@ import {
   updateProfile,
   verifyEmail,
   resendVerification,
+  forgotPassword,
+  resetPasswordWithToken,
 } from "../../src/controllers/authController";
 
 // Mock dependencies
@@ -12,6 +14,7 @@ jest.mock("../../src/utils/auth");
 jest.mock("../../src/db");
 jest.mock("../../src/services/emailService");
 jest.mock("../../src/utils/emailVerification");
+jest.mock("../../src/utils/passwordReset");
 
 import { sendVerificationEmail } from "../../src/services/emailService";
 import {
@@ -19,6 +22,16 @@ import {
   generateVerificationExpiry,
   isTokenExpired,
 } from "../../src/utils/emailVerification";
+
+import { sendPasswordResetEmail } from "../../src/services/emailService";
+import {
+  generatePasswordResetToken,
+  generatePasswordResetExpiry,
+  isPasswordResetTokenExpired,
+  validatePassword,
+  validateEmailFormat,
+  normalizeEmail,
+} from "../../src/utils/passwordReset";
 
 // Mock implementations
 const mockSendVerificationEmail = sendVerificationEmail as jest.MockedFunction<
@@ -34,6 +47,31 @@ const mockGenerateVerificationExpiry =
   >;
 const mockIsTokenExpired = isTokenExpired as jest.MockedFunction<
   typeof isTokenExpired
+>;
+
+// Password Reset Mocks
+const mockSendPasswordResetEmail =
+  sendPasswordResetEmail as jest.MockedFunction<typeof sendPasswordResetEmail>;
+const mockGeneratePasswordResetToken =
+  generatePasswordResetToken as jest.MockedFunction<
+    typeof generatePasswordResetToken
+  >;
+const mockGeneratePasswordResetExpiry =
+  generatePasswordResetExpiry as jest.MockedFunction<
+    typeof generatePasswordResetExpiry
+  >;
+const mockIsPasswordResetTokenExpired =
+  isPasswordResetTokenExpired as jest.MockedFunction<
+    typeof isPasswordResetTokenExpired
+  >;
+const mockValidatePassword = validatePassword as jest.MockedFunction<
+  typeof validatePassword
+>;
+const mockValidateEmailFormat = validateEmailFormat as jest.MockedFunction<
+  typeof validateEmailFormat
+>;
+const mockNormalizeEmail = normalizeEmail as jest.MockedFunction<
+  typeof normalizeEmail
 >;
 
 describe("Auth Controller", () => {
@@ -700,6 +738,301 @@ describe("Auth Controller", () => {
         success: false,
         message: "Email sending failed",
         error: "Failed to send verification email. Please try again later.",
+      });
+    });
+  });
+
+  describe("forgotPassword", () => {
+    beforeEach(() => {
+      mockNormalizeEmail.mockImplementation((email) => email.toLowerCase());
+      mockValidateEmailFormat.mockReturnValue(true);
+      mockGeneratePasswordResetToken.mockReturnValue("reset-token-12345");
+      mockGeneratePasswordResetExpiry.mockReturnValue(
+        new Date(Date.now() + 24 * 60 * 60 * 1000)
+      );
+      mockSendPasswordResetEmail.mockResolvedValue(true);
+    });
+
+    it("should return 400 if email is not provided", async () => {
+      mockRequest.body = {};
+
+      await forgotPassword(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Email is required",
+        error: "EMAIL_REQUIRED",
+      });
+    });
+
+    it("should return 400 if email is invalid", async () => {
+      mockValidateEmailFormat.mockReturnValue(false);
+      mockRequest.body = { email: "invalid-email" };
+
+      await forgotPassword(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid email format",
+        error: "INVALID_EMAIL_FORMAT",
+      });
+    });
+
+    it("should return success even if user doesn't exist (security)", async () => {
+      mockRequest.body = { email: "nonexistent@example.com" };
+
+      await forgotPassword(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message:
+          "If an account exists with this email, a password reset link has been sent",
+      });
+      expect(mockSendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+
+    it("should generate reset token and send email for existing user", async () => {
+      mockRequest.body = { email: "user@example.com" };
+
+      await forgotPassword(mockRequest as Request, mockResponse as Response);
+
+      expect(mockNormalizeEmail).toHaveBeenCalledWith("user@example.com");
+      expect(mockValidateEmailFormat).toHaveBeenCalled();
+      expect(mockGeneratePasswordResetToken).toHaveBeenCalled();
+      expect(mockGeneratePasswordResetExpiry).toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message:
+          "If an account exists with this email, a password reset link has been sent",
+      });
+    });
+
+    it("should handle email sending failure gracefully", async () => {
+      mockSendPasswordResetEmail.mockResolvedValue(false);
+      mockRequest.body = { email: "user@example.com" };
+
+      await forgotPassword(mockRequest as Request, mockResponse as Response);
+
+      // Should still return success even if email fails
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message:
+          "If an account exists with this email, a password reset link has been sent",
+      });
+    });
+
+    it("should handle server errors gracefully", async () => {
+      mockNormalizeEmail.mockImplementation(() => {
+        throw new Error("Database error");
+      });
+      mockRequest.body = { email: "user@example.com" };
+
+      await forgotPassword(mockRequest as Request, mockResponse as Response);
+
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Internal Server Error",
+        error: "An unexpected error occurred during password reset request",
+      });
+    });
+  });
+
+  describe("resetPasswordWithToken", () => {
+    beforeEach(() => {
+      mockValidatePassword.mockReturnValue({ isValid: true });
+      mockIsPasswordResetTokenExpired.mockReturnValue(false);
+    });
+
+    it("should return 400 if token is not provided", async () => {
+      mockRequest.body = {
+        newPassword: "NewPass123",
+        confirmPassword: "NewPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Reset token is required",
+        error: "TOKEN_REQUIRED",
+      });
+    });
+
+    it("should return 400 if newPassword is not provided", async () => {
+      mockRequest.body = {
+        token: "reset-token",
+        confirmPassword: "NewPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "New password is required",
+        error: "PASSWORD_REQUIRED",
+      });
+    });
+
+    it("should return 400 if confirmPassword is not provided", async () => {
+      mockRequest.body = { token: "reset-token", newPassword: "NewPass123" };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Password confirmation is required",
+        error: "CONFIRM_PASSWORD_REQUIRED",
+      });
+    });
+
+    it("should return 400 if passwords don't match", async () => {
+      mockRequest.body = {
+        token: "reset-token",
+        newPassword: "NewPass123",
+        confirmPassword: "DifferentPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Passwords do not match",
+        error: "PASSWORDS_MISMATCH",
+      });
+    });
+
+    it("should return 400 if password is too weak", async () => {
+      mockValidatePassword.mockReturnValue({
+        isValid: false,
+        message: "Password must contain uppercase, lowercase, and numbers",
+      });
+      mockRequest.body = {
+        token: "reset-token",
+        newPassword: "weak",
+        confirmPassword: "weak",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Password must contain uppercase, lowercase, and numbers",
+        error: "WEAK_PASSWORD",
+      });
+    });
+
+    it("should return 400 if reset token is invalid", async () => {
+      mockValidatePassword.mockReturnValue({ isValid: true });
+      mockRequest.body = {
+        token: "invalid-token",
+        newPassword: "NewPass123",
+        confirmPassword: "NewPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid or expired reset token",
+        error: "INVALID_TOKEN",
+      });
+    });
+
+    it("should return 400 if reset token has expired", async () => {
+      mockValidatePassword.mockReturnValue({ isValid: true });
+      mockIsPasswordResetTokenExpired.mockReturnValue(true);
+      mockRequest.body = {
+        token: "expired-token",
+        newPassword: "NewPass123",
+        confirmPassword: "NewPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(400);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message:
+          "Reset token has expired. Please request a new password reset.",
+        error: "TOKEN_EXPIRED",
+      });
+    });
+
+    it("should successfully reset password with valid token", async () => {
+      mockValidatePassword.mockReturnValue({ isValid: true });
+      mockIsPasswordResetTokenExpired.mockReturnValue(false);
+      mockRequest.body = {
+        token: "valid-token",
+        newPassword: "NewPass123",
+        confirmPassword: "NewPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: true,
+        message:
+          "Password has been reset successfully. You can now log in with your new password.",
+      });
+    });
+
+    it("should handle server errors gracefully", async () => {
+      mockValidatePassword.mockImplementation(() => {
+        throw new Error("Validation error");
+      });
+      mockRequest.body = {
+        token: "reset-token",
+        newPassword: "NewPass123",
+        confirmPassword: "NewPass123",
+      };
+
+      await resetPasswordWithToken(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        success: false,
+        message: "Internal Server Error",
+        error: "An unexpected error occurred during password reset",
       });
     });
   });

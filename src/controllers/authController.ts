@@ -21,13 +21,26 @@ import {
   AuthResponse,
   ChangePasswordRequest,
   UpdateProfileRequest,
+  ForgotPasswordRequest,
+  ResetPasswordWithTokenRequest,
 } from "../types/auth";
-import { sendVerificationEmail } from "../services/emailService";
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from "../services/emailService";
 import {
   generateVerificationToken,
   generateVerificationExpiry,
   isTokenExpired,
 } from "../utils/emailVerification";
+import {
+  generatePasswordResetToken,
+  generatePasswordResetExpiry,
+  isPasswordResetTokenExpired,
+  validatePassword,
+  validateEmailFormat,
+  normalizeEmail,
+} from "../utils/passwordReset";
 
 const setRefreshTokenCookie = (res: Response, token: string): void => {
   res.cookie("refreshToken", token, {
@@ -1083,6 +1096,226 @@ export const updateProfile = async (
       success: false,
       message: "Internal Server Error",
       error: "An unexpected error occurred during profile update",
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Forgot Password - Send password reset email
+ * Step 1 of password reset flow
+ * Validates email, generates reset token, sends email
+ */
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    // Validate email is provided
+    if (!email || typeof email !== "string") {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+        error: "EMAIL_REQUIRED",
+      });
+      return;
+    }
+
+    // Validate email format
+    const normalizedEmail = normalizeEmail(email);
+    if (!validateEmailFormat(normalizedEmail)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+        error: "INVALID_EMAIL_FORMAT",
+      });
+      return;
+    }
+
+    // Find user by email (don't reveal if exists for security)
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    // Always return success for security (prevents email enumeration attacks)
+    const response: AuthResponse = {
+      success: true,
+      message:
+        "If an account exists with this email, a password reset link has been sent",
+    };
+
+    // If user doesn't exist, return success without sending email
+    if (userResult.length === 0) {
+      console.log(
+        `Password reset requested for non-existent email: ${normalizedEmail}`
+      );
+      res.status(200).json(response);
+      return;
+    }
+
+    const user = userResult[0];
+
+    // Generate reset token and expiry
+    const resetToken = generatePasswordResetToken();
+    const resetExpiry = generatePasswordResetExpiry();
+
+    // Update user with reset token in database
+    await db
+      .update(users)
+      .set({
+        resetToken,
+        resetTokenExpires: resetExpiry,
+      })
+      .where(eq(users.id, user.id));
+
+    console.log(`Reset token generated for user: ${user.email}`);
+
+    // Send password reset email
+    const emailSent = await sendPasswordResetEmail(
+      user.email,
+      user.name,
+      resetToken
+    );
+
+    if (!emailSent) {
+      console.warn(`Failed to send password reset email to ${user.email}`);
+      // Still return success to not reveal email status
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during password reset request",
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Reset Password - Complete password reset with token
+ * Step 2 of password reset flow
+ * Validates token, updates password, clears reset token
+ */
+export const resetPasswordWithToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { token, newPassword, confirmPassword } = req.body;
+
+    // Validate required fields
+    if (!token || typeof token !== "string") {
+      res.status(400).json({
+        success: false,
+        message: "Reset token is required",
+        error: "TOKEN_REQUIRED",
+      });
+      return;
+    }
+
+    if (!newPassword || typeof newPassword !== "string") {
+      res.status(400).json({
+        success: false,
+        message: "New password is required",
+        error: "PASSWORD_REQUIRED",
+      });
+      return;
+    }
+
+    if (!confirmPassword || typeof confirmPassword !== "string") {
+      res.status(400).json({
+        success: false,
+        message: "Password confirmation is required",
+        error: "CONFIRM_PASSWORD_REQUIRED",
+      });
+      return;
+    }
+
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+        error: "PASSWORDS_MISMATCH",
+      });
+      return;
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.isValid) {
+      res.status(400).json({
+        success: false,
+        message:
+          passwordValidation.message || "Password does not meet requirements",
+        error: "WEAK_PASSWORD",
+      });
+      return;
+    }
+
+    // Find user by reset token
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.resetToken, token))
+      .limit(1);
+
+    if (userResult.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset token",
+        error: "INVALID_TOKEN",
+      });
+      return;
+    }
+
+    const user = userResult[0];
+
+    // Check if token has expired
+    if (isPasswordResetTokenExpired(user.resetTokenExpires)) {
+      res.status(400).json({
+        success: false,
+        message:
+          "Reset token has expired. Please request a new password reset.",
+        error: "TOKEN_EXPIRED",
+      });
+      return;
+    }
+
+    // Hash new password
+    const hashedPassword = await hashPassword(newPassword);
+
+    // Update user password and clear reset token
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpires: null,
+      })
+      .where(eq(users.id, user.id));
+
+    console.log(`Password reset successfully for user: ${user.email}`);
+
+    const response: AuthResponse = {
+      success: true,
+      message:
+        "Password has been reset successfully. You can now log in with your new password.",
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Reset password error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during password reset",
     };
     res.status(500).json(response);
   }

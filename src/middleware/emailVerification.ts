@@ -9,7 +9,6 @@ export const requireEmailVerification = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // This middleware should be used after the authenticate middleware
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -19,7 +18,6 @@ export const requireEmailVerification = async (
       return;
     }
 
-    // Get user from database to check email verification status
     const userResult = await db
       .select({ emailVerified: users.emailVerified })
       .from(users)
@@ -48,7 +46,6 @@ export const requireEmailVerification = async (
       return;
     }
 
-    // Email is verified, proceed to next middleware/route handler
     next();
   } catch (error) {
     console.error("Email verification middleware error:", error);

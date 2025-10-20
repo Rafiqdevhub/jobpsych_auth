@@ -36,6 +36,13 @@
       "when": 1760936724488,
       "tag": "0004_white_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1729483200000,
+      "tag": "0005_add_password_reset",
+      "breakpoints": true
     }
   ]
 }

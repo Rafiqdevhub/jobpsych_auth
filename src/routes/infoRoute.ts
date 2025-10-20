@@ -250,6 +250,232 @@ router.get("/", (req, res) => {
       },
     },
 
+    passwordReset: {
+      overview:
+        "Complete 2-step password reset flow ensuring security and user authentication",
+      twoStepProcess: {
+        step1:
+          "User requests password reset via email (forgotPassword endpoint)",
+        step2:
+          "User receives email with secure token and resets password within 24 hours (resetPasswordWithToken endpoint)",
+      },
+      features: [
+        "Secure 2-step password reset process",
+        "Cryptographically secure tokens (32-byte random)",
+        "24-hour token expiry with automatic invalidation",
+        "Single-use tokens (invalidated after use)",
+        "Email enumeration prevention (always returns success)",
+        "Strong password validation (8+ chars, uppercase, lowercase, number)",
+        "Modern responsive HTML email templates with reset link",
+        "Automatic token cleanup after successful reset",
+        "Copy-to-clipboard functionality in emails",
+        "Comprehensive error handling and user feedback",
+      ],
+      flow: {
+        requestReset: [
+          "1. User submits email via /forgot-password endpoint",
+          "2. System validates email format",
+          "3. System normalizes email (lowercase, trim)",
+          "4. For security: always returns success message",
+          "5. If user exists: generates 32-byte secure token",
+          "6. System sets token expiry (24 hours from now)",
+          "7. System stores token in database linked to user",
+          "8. System sends beautiful HTML password reset email",
+          "9. User receives email with secure reset link containing token",
+        ],
+        resetPassword: [
+          "1. User clicks reset link or manually navigates to reset page",
+          "2. Frontend extracts token from URL query parameter",
+          "3. Frontend sends POST /reset-password-with-token with token + new password",
+          "4. System validates token format",
+          "5. System finds user by reset token in database",
+          "6. System validates token hasn't expired (24-hour check)",
+          "7. System validates password meets strength requirements",
+          "8. System validates password and confirm password match",
+          "9. System hashes new password with bcrypt",
+          "10. System updates password in database",
+          "11. System clears reset token and expiry (cleanup)",
+          "12. System returns success message",
+          "13. User can now login with new password",
+        ],
+      },
+      security: {
+        tokenGeneration:
+          "crypto.randomBytes(32).toString('hex') - 64 character cryptographically secure token",
+        tokenStorage: "Database stored as varchar(255) with proper indexing",
+        tokenExpiry: "24 hours from generation, enforced during reset",
+        singleUse:
+          "Tokens invalidated immediately after successful password reset",
+        emailEnumeration:
+          "Prevented by always returning success (no indication if email exists)",
+        passwordValidation: {
+          minLength: "8 characters",
+          requirements: [
+            "At least one uppercase letter (A-Z)",
+            "At least one lowercase letter (a-z)",
+            "At least one number (0-9)",
+            "Cannot contain only spaces",
+          ],
+        },
+        rateLimiting: "No rate limiting on forgot-password (always succeeds)",
+        cleanup: "Tokens automatically cleared after successful reset",
+        httpsRequired:
+          "Production deployment requires HTTPS for secure token transmission",
+        errorMessages: "Generic error messages prevent information disclosure",
+      },
+      emailService: {
+        provider: "Nodemailer with SMTP configuration",
+        templates: "Modern responsive HTML with orange gradient design",
+        features:
+          "Copy-to-clipboard button, fallback URL display, mobile responsive, security notices",
+        contentInclusion: [
+          "User's name and greeting",
+          "Security notice about token expiry (24 hours)",
+          "Reset link with embedded token (production uses frontend URL)",
+          "Fallback text URL for email clients without JavaScript",
+          "Copy-to-clipboard button for easy token handling",
+          "Instructions for resetting password",
+          "Security warning about not sharing email",
+          "Contact support link",
+          "JobPsych branding and footer",
+        ],
+      },
+      database: {
+        schema: {
+          resetToken: "varchar(255) - stores current reset token",
+          resetTokenExpires: "timestamp - token expiry date/time",
+        },
+        migration: "Added in migration 0005_add_password_reset.sql",
+        indexing: "resetToken should be indexed for performance",
+        cleanup: "Tokens automatically cleared after successful reset",
+      },
+      utilities: {
+        file: "src/utils/passwordReset.ts",
+        functions: [
+          {
+            name: "generatePasswordResetToken()",
+            purpose: "Generate 32-byte cryptographically secure token",
+            returns: "64-character hex string",
+          },
+          {
+            name: "generatePasswordResetExpiry()",
+            purpose: "Generate 24-hour expiry timestamp",
+            returns: "Date object (current time + 24 hours)",
+          },
+          {
+            name: "isPasswordResetTokenExpired(expiry: Date | null)",
+            purpose: "Check if token has passed expiry time",
+            returns: "boolean (true if expired)",
+          },
+          {
+            name: "validatePassword(password: string)",
+            purpose: "Validate password meets strength requirements",
+            returns: "{ isValid: boolean, message?: string }",
+          },
+          {
+            name: "validateEmailFormat(email: string)",
+            purpose: "Validate email format using regex",
+            returns: "boolean (true if valid format)",
+          },
+          {
+            name: "normalizeEmail(email: string)",
+            purpose: "Normalize email (lowercase, trim whitespace)",
+            returns: "string (normalized email)",
+          },
+        ],
+      },
+      configuration: {
+        environmentVariables: {
+          EMAIL_HOST: "SMTP server hostname",
+          EMAIL_PORT: "SMTP server port (587/465)",
+          EMAIL_SECURE: "Use TLS/SSL (true/false)",
+          EMAIL_USER: "SMTP authentication username",
+          EMAIL_PASS: "SMTP authentication password",
+          EMAIL_FROM: "Sender email address",
+          FRONTEND_URL: "Frontend URL for password reset links",
+        },
+        tokenSettings: {
+          RESET_TOKEN_LENGTH: "32 bytes (64 hex characters)",
+          RESET_TOKEN_EXPIRY_HOURS: "24 hours",
+          PASSWORD_MIN_LENGTH: "8 characters",
+          TOKEN_CLEANUP: "Automatic on successful reset",
+        },
+      },
+      errorHandling: {
+        emailRequired: {
+          code: "EMAIL_REQUIRED",
+          status: 400,
+          message: "Email is required",
+          suggestion: "Provide email address for password reset",
+        },
+        invalidEmailFormat: {
+          code: "INVALID_EMAIL_FORMAT",
+          status: 400,
+          message: "Invalid email format",
+          suggestion: "Enter a valid email address",
+        },
+        tokenRequired: {
+          code: "TOKEN_REQUIRED",
+          status: 400,
+          message: "Reset token is required",
+          suggestion: "Use the link from your password reset email",
+        },
+        passwordRequired: {
+          code: "PASSWORD_REQUIRED",
+          status: 400,
+          message: "New password is required",
+          suggestion: "Enter a new password",
+        },
+        confirmPasswordRequired: {
+          code: "CONFIRM_PASSWORD_REQUIRED",
+          status: 400,
+          message: "Password confirmation is required",
+          suggestion: "Confirm your new password",
+        },
+        passwordsMismatch: {
+          code: "PASSWORDS_MISMATCH",
+          status: 400,
+          message: "Passwords do not match",
+          suggestion: "Ensure new password and confirm password are identical",
+        },
+        weakPassword: {
+          code: "WEAK_PASSWORD",
+          status: 400,
+          message: "Password does not meet requirements",
+          suggestion:
+            "Password must be 8+ chars with uppercase, lowercase, and number",
+        },
+        invalidToken: {
+          code: "INVALID_TOKEN",
+          status: 400,
+          message: "Invalid or expired reset token",
+          suggestion: "Request a new password reset email",
+        },
+        tokenExpired: {
+          code: "TOKEN_EXPIRED",
+          status: 400,
+          message: "Reset token has expired (24-hour limit)",
+          suggestion: "Request a new password reset email",
+        },
+      },
+      testing: {
+        unitTests:
+          "authController.test.ts includes 17 comprehensive password reset tests",
+        testCoverage: [
+          "Email validation (required, format)",
+          "Token validation (required, format, expiry)",
+          "Password validation (strength, match, required)",
+          "Security (email enumeration prevention, single-use tokens)",
+          "Success flows (token generation, email sending, password reset)",
+          "Error handling (invalid input, expired tokens, weak passwords)",
+          "Edge cases (email sending failure, database errors)",
+        ],
+        mockServices:
+          "Email service mocked to prevent actual email sending in tests",
+        testFile: "tests/controllers/authController.test.ts",
+      },
+    },
+
     endpoints: [
       {
         category: "Authentication",
@@ -348,6 +574,92 @@ router.get("/", (req, res) => {
         },
         response: "Success message",
         notes: "Updates password in database with bcrypt hashing",
+      },
+      {
+        category: "Password Reset",
+        method: "POST",
+        path: "/api/auth/forgot-password",
+        description:
+          "Request password reset email (Step 1 of 2-step password reset flow)",
+        authentication: "None",
+        requestBody: {
+          email: "string (required) - User's email address",
+        },
+        response: {
+          success: "boolean",
+          message:
+            "If an account exists with this email, a password reset link has been sent",
+        },
+        errorCodes: {
+          EMAIL_REQUIRED: {
+            status: 400,
+            message: "Email is required",
+          },
+          INVALID_EMAIL_FORMAT: {
+            status: 400,
+            message: "Invalid email format",
+          },
+        },
+        notes:
+          "Always returns success for security (prevents email enumeration attacks). If user exists, generates secure reset token (32-byte crypto), sets 24-hour expiry, and sends beautiful HTML email with reset link. For non-existent emails, returns success without sending anything.",
+        security:
+          "Implements security-first design: no email enumeration, single-use tokens, 24-hour expiry, cryptographically secure token generation",
+      },
+      {
+        category: "Password Reset",
+        method: "POST",
+        path: "/api/auth/reset-password-with-token",
+        description:
+          "Complete password reset with token (Step 2 of 2-step password reset flow)",
+        authentication: "None",
+        requestBody: {
+          token: "string (required) - Password reset token from email",
+          newPassword:
+            "string (required) - New password (min 8 chars, uppercase, lowercase, number)",
+          confirmPassword:
+            "string (required) - Confirm new password (must match newPassword)",
+        },
+        response: {
+          success: "boolean",
+          message:
+            "Password has been reset successfully. You can now log in with your new password.",
+        },
+        errorCodes: {
+          TOKEN_REQUIRED: {
+            status: 400,
+            message: "Reset token is required",
+          },
+          PASSWORD_REQUIRED: {
+            status: 400,
+            message: "New password is required",
+          },
+          CONFIRM_PASSWORD_REQUIRED: {
+            status: 400,
+            message: "Password confirmation is required",
+          },
+          PASSWORDS_MISMATCH: {
+            status: 400,
+            message: "Passwords do not match",
+          },
+          WEAK_PASSWORD: {
+            status: 400,
+            message:
+              "Password does not meet requirements (min 8 chars, uppercase, lowercase, number)",
+          },
+          INVALID_TOKEN: {
+            status: 400,
+            message: "Invalid or expired reset token",
+          },
+          TOKEN_EXPIRED: {
+            status: 400,
+            message:
+              "Reset token has expired. Please request a new password reset.",
+          },
+        },
+        notes:
+          "Validates token existence and 24-hour expiry. Enforces strong password requirements. Updates password with bcrypt hashing. Single-use tokens (automatically cleared after use). User must complete within 24 hours or request new reset email.",
+        security:
+          "Strong password validation (8+ chars, uppercase, lowercase, number), secure token validation, single-use tokens, automatic token cleanup",
       },
       {
         category: "Authentication",
