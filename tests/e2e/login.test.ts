@@ -31,6 +31,13 @@ test.describe("Login & Authentication", () => {
       },
     });
 
+    // Verify email for testing
+    await api.post("/api/auth/internal/verify-email-for-test", {
+      data: {
+        email: uniqueEmail,
+      },
+    });
+
     // Then login
     const loginResponse = await api.post("/api/auth/login", {
       data: {
@@ -132,6 +139,13 @@ test.describe("Login & Authentication", () => {
       },
     });
 
+    // Verify email for testing
+    await api.post("/api/auth/internal/verify-email-for-test", {
+      data: {
+        email: uniqueEmail,
+      },
+    });
+
     // Login
     const loginResponse = await api.post("/api/auth/login", {
       data: {
@@ -163,6 +177,13 @@ test.describe("Login & Authentication", () => {
         email: uniqueEmail,
         company_name: "Test Company",
         password: "password123",
+      },
+    });
+
+    // Verify email for testing
+    await api.post("/api/auth/internal/verify-email-for-test", {
+      data: {
+        email: uniqueEmail,
       },
     });
 

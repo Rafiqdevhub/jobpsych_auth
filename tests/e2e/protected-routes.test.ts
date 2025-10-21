@@ -159,6 +159,13 @@ test.describe("Protected Route Access", () => {
       },
     });
 
+    // Verify email for testing
+    await api.post("/api/auth/internal/verify-email-for-test", {
+      data: {
+        email: uniqueEmail,
+      },
+    });
+
     const loginResponse = await api.post("/api/auth/login", {
       data: {
         email: uniqueEmail,

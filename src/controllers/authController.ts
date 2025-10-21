@@ -1320,3 +1320,82 @@ export const resetPasswordWithToken = async (
     res.status(500).json(response);
   }
 };
+
+/**
+ * Internal Test Endpoint - Verify Email for Testing Only
+ * This endpoint is for development/testing purposes only
+ * It directly marks an email as verified without requiring a token
+ */
+export const internalVerifyEmailForTest = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Only allow in development/test environments
+    if (process.env.NODE_ENV === "production") {
+      const response: AuthResponse = {
+        success: false,
+        message: "Forbidden",
+        error: "This endpoint is not available in production",
+      };
+      res.status(403).json(response);
+      return;
+    }
+
+    const { email } = req.body;
+
+    if (!email || typeof email !== "string") {
+      const response: AuthResponse = {
+        success: false,
+        message: "Validation Error",
+        error: "Email is required",
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Find user by email
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (userResult.length === 0) {
+      const response: AuthResponse = {
+        success: false,
+        message: "User not found",
+        error: "No user found with this email address",
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    // Update user to mark email as verified and clear verification token
+    await db
+      .update(users)
+      .set({
+        emailVerified: true,
+        verificationToken: null,
+        verificationExpires: null,
+      })
+      .where(eq(users.email, email.toLowerCase()));
+
+    const response: AuthResponse = {
+      success: true,
+      message: "Email verified successfully for testing",
+      data: {
+        email: email.toLowerCase(),
+      },
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Internal verify email error:", error);
+    const response: AuthResponse = {
+      success: false,
+      message: "Internal Server Error",
+      error: "An unexpected error occurred during email verification",
+    };
+    res.status(500).json(response);
+  }
+};

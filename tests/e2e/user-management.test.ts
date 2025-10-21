@@ -104,6 +104,13 @@ test.describe("User Management", () => {
       },
     });
 
+    // Verify email for testing
+    await api.post("/api/auth/internal/verify-email-for-test", {
+      data: {
+        email: uniqueEmail,
+      },
+    });
+
     // Reset password
     const resetResponse = await api.post("/api/auth/reset-password", {
       data: {

@@ -132,7 +132,7 @@ describe("Auth Controller", () => {
       json: jest.fn().mockReturnThis(),
       cookie: jest.fn().mockReturnThis(),
     };
-    
+
     // Setup db mocks
     const mockDb = require("../../src/db").db;
     setupDbMocks(mockDb);
@@ -145,7 +145,7 @@ describe("Auth Controller", () => {
         new Date(Date.now() + 24 * 60 * 60 * 1000)
       );
       mockSendVerificationEmail.mockResolvedValue(true);
-      
+
       // Mock hashPassword
       const mockHashPassword = require("../../src/utils/auth").hashPassword;
       mockHashPassword.mockResolvedValue("hashedpassword");
@@ -776,14 +776,14 @@ describe("Auth Controller", () => {
       mockRequest.body = { token: "valid-token" };
 
       // Mock generateAccessToken and generateRefreshToken
-      const mockGenerateAccessToken = require("../../src/utils/auth")
-        .generateAccessToken;
+      const mockGenerateAccessToken =
+        require("../../src/utils/auth").generateAccessToken;
       mockGenerateAccessToken.mockReturnValue("test-access-token");
-      const mockGenerateRefreshToken = require("../../src/utils/auth")
-        .generateRefreshToken;
+      const mockGenerateRefreshToken =
+        require("../../src/utils/auth").generateRefreshToken;
       mockGenerateRefreshToken.mockReturnValue("test-refresh-token");
-      const mockHashRefreshToken = require("../../src/utils/auth")
-        .hashRefreshToken;
+      const mockHashRefreshToken =
+        require("../../src/utils/auth").hashRefreshToken;
       mockHashRefreshToken.mockResolvedValue("hashed-refresh-token");
 
       // Mock database to return unverified user and then handle updates

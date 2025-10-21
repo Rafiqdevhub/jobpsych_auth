@@ -72,6 +72,23 @@ export const test = base.extend<TestFixtures>({
       );
     }
 
+    // Verify the test user's email for testing (internal endpoint)
+    const verifyResponse = await api.post(
+      "/api/auth/internal/verify-email-for-test",
+      {
+        data: {
+          email: testUser.email,
+        },
+      }
+    );
+
+    if (!verifyResponse.ok()) {
+      const errorText = await verifyResponse.text();
+      throw new Error(
+        `Failed to verify test user email: ${verifyResponse.status()} - ${errorText}`
+      );
+    }
+
     // Login to get token
     const loginResponse = await api.post("/api/auth/login", {
       data: {

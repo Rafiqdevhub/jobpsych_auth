@@ -138,12 +138,14 @@ test.describe("User Registration", () => {
     const data = await response.json();
 
     expect(data.success).toBe(true);
-    expect(data.message).toBe("User registered successfully");
+    expect(data.message).toBe(
+      "Registration successful! Please check your email to verify your account."
+    );
     expect(data.data).toBeDefined();
-    expect(data.data.accessToken).toBeDefined();
     expect(data.data.user).toBeDefined();
     expect(data.data.user.email).toBe(uniqueEmail);
     expect(data.data.user.name).toBe("Test User");
     expect(data.data.user.company_name).toBe("Test Company");
+    expect(data.data.requiresVerification).toBe(true);
   });
 });

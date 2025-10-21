@@ -112,10 +112,10 @@ test.describe("Rate Limiting", () => {
   }) => {
     const response = await api.post("/api/auth/increment-upload");
 
-    expect(response.status()).toBe(400); // Requires email in body, not auth
+    expect(response.status()).toBe(401); // Requires authentication middleware
     const data = await response.json();
     expect(data.success).toBe(false);
-    expect(data.message).toBe("Email is required");
+    expect(data.message).toBe("Access token is required");
   });
 
   test("should reject upload stats access without authentication", async ({

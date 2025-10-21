@@ -11,6 +11,7 @@ import {
   resendVerification,
   forgotPassword,
   resetPasswordWithToken,
+  internalVerifyEmailForTest,
 } from "../controllers/authController";
 import { verifyToken, getJWTInfo } from "../controllers/jwtController";
 import { authenticate } from "../middleware/auth";
@@ -35,6 +36,9 @@ router.put(
   updateProfile
 );
 router.get("/profile", authenticate, requireEmailVerification, getProfile);
+
+// Internal test endpoint (development/testing only)
+router.post("/internal/verify-email-for-test", internalVerifyEmailForTest);
 
 //  (for cross-service communication)
 router.post("/verify-token", verifyToken);
