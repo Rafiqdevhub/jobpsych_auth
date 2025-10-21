@@ -74,6 +74,53 @@ const mockNormalizeEmail = normalizeEmail as jest.MockedFunction<
   typeof normalizeEmail
 >;
 
+// Helper function to setup database mock chains
+const setupDbMocks = (mockDb: any) => {
+  // Setup SELECT chain
+  mockDb.select.mockReturnValue({
+    from: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnValue({
+        limit: jest.fn().mockResolvedValue([]),
+      }),
+    }),
+  });
+
+  // Setup INSERT chain
+  mockDb.insert.mockReturnValue({
+    values: jest.fn().mockReturnValue({
+      returning: jest.fn().mockResolvedValue([
+        {
+          id: "1",
+          name: "Test User",
+          email: "test@example.com",
+          company_name: "Test Company",
+          filesUploaded: 0,
+          batch_analysis: 0,
+          compare_resumes: 0,
+        },
+      ]),
+    }),
+  });
+
+  // Setup UPDATE chain
+  mockDb.update.mockReturnValue({
+    set: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnValue({
+        returning: jest.fn().mockResolvedValue([
+          {
+            id: "1",
+            name: "Updated Name",
+            email: "test@example.com",
+            company_name: "Test Company",
+            filesUploaded: 5,
+            updated_at: new Date("2025-10-08T10:00:00Z"),
+          },
+        ]),
+      }),
+    }),
+  });
+};
+
 describe("Auth Controller", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
@@ -85,6 +132,10 @@ describe("Auth Controller", () => {
       json: jest.fn().mockReturnThis(),
       cookie: jest.fn().mockReturnThis(),
     };
+    
+    // Setup db mocks
+    const mockDb = require("../../src/db").db;
+    setupDbMocks(mockDb);
   });
 
   describe("register", () => {
@@ -94,6 +145,10 @@ describe("Auth Controller", () => {
         new Date(Date.now() + 24 * 60 * 60 * 1000)
       );
       mockSendVerificationEmail.mockResolvedValue(true);
+      
+      // Mock hashPassword
+      const mockHashPassword = require("../../src/utils/auth").hashPassword;
+      mockHashPassword.mockResolvedValue("hashedpassword");
     });
 
     it("should return 400 for missing required fields", async () => {
@@ -117,13 +172,29 @@ describe("Auth Controller", () => {
         company_name: "Test Co",
       };
 
+      // Mock database to show user already exists with this email
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "invalid-email",
+                name: "Existing User",
+              },
+            ]),
+          }),
+        }),
+      });
+
       await register(mockRequest as Request, mockResponse as Response);
 
-      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.status).toHaveBeenCalledWith(409);
       expect(mockResponse.json).toHaveBeenCalledWith({
         success: false,
-        message: "Internal Server Error",
-        error: "An unexpected error occurred during registration",
+        message: "User already exists",
+        error: "A user with this email already exists",
       });
     });
 
@@ -188,6 +259,29 @@ describe("Auth Controller", () => {
         email: "unverified@example.com",
         password: "test123",
       };
+
+      // Mock database to return unverified user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "unverified@example.com",
+                password: "hashedpassword",
+                emailVerified: false,
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+              },
+            ]),
+          }),
+        }),
+      });
+
+      const mockVerifyPassword = require("../../src/utils/auth").verifyPassword;
+      mockVerifyPassword.mockResolvedValue(true);
 
       await login(mockRequest as Request, mockResponse as Response);
 
@@ -584,6 +678,16 @@ describe("Auth Controller", () => {
     it("should return 400 for invalid token", async () => {
       mockRequest.body = { token: "invalid-token" };
 
+      // Mock database to return no user for invalid token
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
       await verifyEmail(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -597,6 +701,29 @@ describe("Auth Controller", () => {
     it("should return 400 for expired token", async () => {
       mockIsTokenExpired.mockReturnValue(true);
       mockRequest.body = { token: "expired-token" };
+
+      // Mock database to return user with expired token
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "test@example.com",
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+                batch_analysis: 0,
+                compare_resumes: 0,
+                emailVerified: false,
+                verificationToken: "expired-token",
+                verificationExpires: new Date(Date.now() - 1000),
+              },
+            ]),
+          }),
+        }),
+      });
 
       await verifyEmail(mockRequest as Request, mockResponse as Response);
 
@@ -612,6 +739,29 @@ describe("Auth Controller", () => {
     it("should return 400 for already verified email", async () => {
       mockRequest.body = { token: "already-verified-token" };
 
+      // Mock database to return already verified user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "test@example.com",
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+                batch_analysis: 0,
+                compare_resumes: 0,
+                emailVerified: true,
+                verificationToken: "already-verified-token",
+                verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              },
+            ]),
+          }),
+        }),
+      });
+
       await verifyEmail(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -624,6 +774,46 @@ describe("Auth Controller", () => {
 
     it("should successfully verify email and return tokens", async () => {
       mockRequest.body = { token: "valid-token" };
+
+      // Mock generateAccessToken and generateRefreshToken
+      const mockGenerateAccessToken = require("../../src/utils/auth")
+        .generateAccessToken;
+      mockGenerateAccessToken.mockReturnValue("test-access-token");
+      const mockGenerateRefreshToken = require("../../src/utils/auth")
+        .generateRefreshToken;
+      mockGenerateRefreshToken.mockReturnValue("test-refresh-token");
+      const mockHashRefreshToken = require("../../src/utils/auth")
+        .hashRefreshToken;
+      mockHashRefreshToken.mockResolvedValue("hashed-refresh-token");
+
+      // Mock database to return unverified user and then handle updates
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "test@example.com",
+                name: "Old Name",
+                company_name: "Test Company",
+                filesUploaded: 5,
+                batch_analysis: 0,
+                compare_resumes: 0,
+                emailVerified: false,
+                verificationToken: "valid-token",
+                verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              },
+            ]),
+          }),
+        }),
+      });
+
+      mockDb.update.mockReturnValue({
+        set: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue(undefined),
+        }),
+      });
 
       await verifyEmail(mockRequest as Request, mockResponse as Response);
 
@@ -672,6 +862,16 @@ describe("Auth Controller", () => {
     it("should return 404 for non-existent user", async () => {
       mockRequest.body = { email: "nonexistent@example.com" };
 
+      // Mock database to return no user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
       await resendVerification(
         mockRequest as Request,
         mockResponse as Response
@@ -688,6 +888,27 @@ describe("Auth Controller", () => {
     it("should return 400 for already verified email", async () => {
       mockRequest.body = { email: "already-verified@example.com" };
 
+      // Mock database to return verified user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "already-verified@example.com",
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+                batch_analysis: 0,
+                compare_resumes: 0,
+                emailVerified: true,
+              },
+            ]),
+          }),
+        }),
+      });
+
       await resendVerification(
         mockRequest as Request,
         mockResponse as Response
@@ -703,6 +924,33 @@ describe("Auth Controller", () => {
 
     it("should successfully resend verification email", async () => {
       mockRequest.body = { email: "unverified@example.com" };
+
+      // Mock database to return unverified user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "unverified@example.com",
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+                batch_analysis: 0,
+                compare_resumes: 0,
+                emailVerified: false,
+              },
+            ]),
+          }),
+        }),
+      });
+
+      mockDb.update.mockReturnValue({
+        set: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue(undefined),
+        }),
+      });
 
       await resendVerification(
         mockRequest as Request,
@@ -727,6 +975,33 @@ describe("Auth Controller", () => {
     it("should return 500 when email sending fails", async () => {
       mockSendVerificationEmail.mockResolvedValue(false);
       mockRequest.body = { email: "unverified@example.com" };
+
+      // Mock database to return unverified user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "unverified@example.com",
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+                batch_analysis: 0,
+                compare_resumes: 0,
+                emailVerified: false,
+              },
+            ]),
+          }),
+        }),
+      });
+
+      mockDb.update.mockReturnValue({
+        set: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue(undefined),
+        }),
+      });
 
       await resendVerification(
         mockRequest as Request,
@@ -783,6 +1058,19 @@ describe("Auth Controller", () => {
     it("should return success even if user doesn't exist (security)", async () => {
       mockRequest.body = { email: "nonexistent@example.com" };
 
+      // Mock database to return no user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
+      // Reset the mock to clear any previous calls
+      mockSendPasswordResetEmail.mockClear();
+
       await forgotPassword(mockRequest as Request, mockResponse as Response);
 
       expect(mockResponse.status).toHaveBeenCalledWith(200);
@@ -796,6 +1084,33 @@ describe("Auth Controller", () => {
 
     it("should generate reset token and send email for existing user", async () => {
       mockRequest.body = { email: "user@example.com" };
+
+      // Mock database to return existing user
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "user@example.com",
+                name: "Test User",
+                company_name: "Test Company",
+                filesUploaded: 0,
+              },
+            ]),
+          }),
+        }),
+      });
+
+      mockDb.update.mockReturnValue({
+        set: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue(undefined),
+        }),
+      });
+
+      // Reset and track the call
+      mockSendPasswordResetEmail.mockClear();
 
       await forgotPassword(mockRequest as Request, mockResponse as Response);
 
@@ -955,6 +1270,16 @@ describe("Auth Controller", () => {
         confirmPassword: "NewPass123",
       };
 
+      // Mock database to return no user for invalid token
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
       await resetPasswordWithToken(
         mockRequest as Request,
         mockResponse as Response
@@ -976,6 +1301,24 @@ describe("Auth Controller", () => {
         newPassword: "NewPass123",
         confirmPassword: "NewPass123",
       };
+
+      // Mock database to return user with expired token
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "test@example.com",
+                name: "Test User",
+                resetToken: "expired-token",
+                resetTokenExpires: new Date(Date.now() - 1000),
+              },
+            ]),
+          }),
+        }),
+      });
 
       await resetPasswordWithToken(
         mockRequest as Request,
@@ -999,6 +1342,34 @@ describe("Auth Controller", () => {
         newPassword: "NewPass123",
         confirmPassword: "NewPass123",
       };
+
+      // Mock database to return user with valid token
+      const mockDb = require("../../src/db").db;
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            limit: jest.fn().mockResolvedValue([
+              {
+                id: "1",
+                email: "test@example.com",
+                name: "Test User",
+                resetToken: "valid-token",
+                resetTokenExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              },
+            ]),
+          }),
+        }),
+      });
+
+      mockDb.update.mockReturnValue({
+        set: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue(undefined),
+        }),
+      });
+
+      // Mock hashPassword
+      const mockHashPassword = require("../../src/utils/auth").hashPassword;
+      mockHashPassword.mockResolvedValue("newhashedpassword");
 
       await resetPasswordWithToken(
         mockRequest as Request,
