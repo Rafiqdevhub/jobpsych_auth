@@ -592,27 +592,7 @@ const getPasswordResetEmailTemplate = (
             font-weight: 500;
         }
 
-        .reset-link {
-            background: #f8fafc;
-            border: 2px dashed #e2e8f0;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 25px 0;
-            text-align: center;
-            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-            position: relative;
-        }
-
-        .reset-link::before {
-            content: '🔐';
-            position: absolute;
-            top: -10px;
-            left: 20px;
-            background: #ffffff;
-            padding: 5px;
-            border-radius: 50%;
-            font-size: 16px;
-        }
+     
 
         .link-label {
             font-size: 12px;
@@ -694,7 +674,7 @@ const getPasswordResetEmailTemplate = (
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🔐 JobPsych</div>
+            <div class="logo">JobPsych</div>
             <div class="tagline">Secure Password Reset</div>
         </div>
 
@@ -711,24 +691,11 @@ const getPasswordResetEmailTemplate = (
             </p>
 
             <div class="cta-section">
-                <a href="${resetUrl}" class="button">🔄 Reset My Password</a>
+                <a href="${resetUrl}" class="button">Reset My Password</a>
             </div>
 
             <div class="warning-box">
                 <p><strong>Action Required:</strong> This link expires in 24 hours for your security.</p>
-            </div>
-
-            <p class="message">
-                If the button doesn't work, copy and paste this link into your browser:
-            </p>
-
-            <div class="reset-link">
-                <div class="link-label">Password Reset Link</div>
-                <div class="link-url">${resetUrl}</div>
-            </div>
-
-            <div class="info-box">
-                <p><strong>Security Tip:</strong> Never share this link with anyone. JobPsych support will never ask for your password reset link.</p>
             </div>
 
             <p class="message">
@@ -742,7 +709,7 @@ const getPasswordResetEmailTemplate = (
                 Questions? Reach out to our <a href="mailto:support@jobpsych.com">support team</a>
             </p>
             <p>
-                © 2025 JobPsych • Built with ❤️ for HR professionals
+                © 2025 JobPsych • Built with for HR professionals
             </p>
         </div>
     </div>
