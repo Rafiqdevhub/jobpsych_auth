@@ -8,47 +8,16 @@ import {
   getFeatureUsage,
   incrementCounter,
 } from "../controllers/rateLimitController";
-import { authenticate } from "../middleware/auth";
-import { requireEmailVerification } from "../middleware/emailVerification";
 
 const router = express.Router();
 
 router.get("/user-uploads/:email", getUserUploads);
-router.post(
-  "/increment-upload",
-  authenticate,
-  requireEmailVerification,
-  incrementUpload
-);
-router.get(
-  "/upload-stats",
-  authenticate,
-  requireEmailVerification,
-  getUploadStats
-);
-
-// Unified counter increment endpoint - NEW!
-router.post(
-  "/increment-counter",
-  authenticate,
-  requireEmailVerification,
-  incrementCounter
-);
-
-// Feature usage endpoints
-router.post(
-  "/increment-batch-analysis",
-  authenticate,
-  requireEmailVerification,
-  incrementBatchAnalysis
-);
-router.post(
-  "/increment-compare-resumes",
-  authenticate,
-  requireEmailVerification,
-  incrementCompareResumes
-);
+router.post("/increment-upload", incrementUpload);
+router.post("/increment-batch-analysis", incrementBatchAnalysis);
+router.post("/increment-compare-resumes", incrementCompareResumes);
 router.get("/feature-usage/:email", getFeatureUsage);
+router.get("/auth/upload-stats", getUploadStats);
+router.post("/auth/increment-counter", incrementCounter);
 
 // Rate limit info endpoint for health checks
 router.get("/rate-limit-info", (req, res) => {
