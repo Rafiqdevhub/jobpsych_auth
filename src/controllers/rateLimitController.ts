@@ -4,8 +4,8 @@ import { users } from "../models/users.model";
 import { eq, sql } from "drizzle-orm";
 import { config } from "../config/env";
 
-// Constants
 const UPLOAD_LIMIT = config.upload.limit;
+const SELECTED_CANDIDATE_LIMIT = 10;
 
 /**
  * @route   GET /api/auth/user-uploads/:email
@@ -47,6 +47,7 @@ export const getUserUploads = async (
         filesUploaded: users.filesUploaded,
         batch_analysis: users.batch_analysis,
         compare_resumes: users.compare_resumes,
+        selected_candidate: users.selected_candidate,
         name: users.name,
       })
       .from(users)
@@ -72,6 +73,7 @@ export const getUserUploads = async (
       filesUploaded: filesUploaded,
       batch_analysis: user.batch_analysis || 0,
       compare_resumes: user.compare_resumes || 0,
+      selected_candidate: user.selected_candidate || 0,
       limit: UPLOAD_LIMIT,
       remaining: Math.max(0, UPLOAD_LIMIT - filesUploaded),
       message: "Upload statistics retrieved successfully",
@@ -391,7 +393,6 @@ export const incrementBatchAnalysis = async (
 
     const normalizedEmail = email.toLowerCase();
 
-    // ✅ Increment batch analysis count by 'count' parameter (not just 1)
     const result = await db
       .update(users)
       .set({
@@ -603,6 +604,147 @@ export const getFeatureUsage = async (
     res.status(500).json({
       success: false,
       message: "Failed to get feature usage statistics",
+      error: "SERVER_ERROR",
+      details:
+        config.nodeEnv === "development" ? (error as Error).message : undefined,
+    });
+  }
+};
+
+/**
+ * @route   POST /api/increment-selected-candidate
+ * @desc    Increment user's selected candidate count
+ * @access  Public (will be called by FastAPI service)
+ */
+export const incrementSelectedCandidate = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email, count = 1 } = req.body;
+
+    // Validate email
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    // Validate count
+    if (typeof count !== "number" || count < 1) {
+      res.status(400).json({
+        success: false,
+        message: "Count must be a positive number",
+        error: "VALIDATION_ERROR",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase();
+
+    // Check if user exists first and get current count
+    const userExists = await db
+      .select({
+        id: users.id,
+        selected_candidate: users.selected_candidate,
+      })
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    if (!userExists || userExists.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: "User not found - must register first",
+        error: "USER_NOT_FOUND",
+      });
+      return;
+    }
+
+    const currentCount = userExists[0].selected_candidate || 0;
+    const newCount = currentCount + count;
+
+    // ✅ CHECK RATE LIMIT: Enforce 10 candidate limit
+    if (newCount > SELECTED_CANDIDATE_LIMIT) {
+      console.debug(
+        `[RATE_LIMIT] User ${normalizedEmail} exceeded selected_candidate limit. Current: ${currentCount}, Attempting to add: ${count}, Limit: ${SELECTED_CANDIDATE_LIMIT}`
+      );
+      res.status(429).json({
+        success: false,
+        message: "You've reached your limit of 10 candidate selections",
+        error: "RATE_LIMIT_EXCEEDED",
+        current_count: currentCount,
+        limit: SELECTED_CANDIDATE_LIMIT,
+        remaining: Math.max(0, SELECTED_CANDIDATE_LIMIT - currentCount),
+      });
+      return;
+    }
+
+    // Increment selected candidate count by 'count' parameter
+    const result = await db
+      .update(users)
+      .set({
+        selected_candidate: sql`${users.selected_candidate} + ${count}`,
+        updated_at: new Date(),
+      })
+      .where(eq(users.email, normalizedEmail))
+      .returning({
+        email: users.email,
+        selected_candidate: users.selected_candidate,
+        filesUploaded: users.filesUploaded,
+        batch_analysis: users.batch_analysis,
+        compare_resumes: users.compare_resumes,
+      });
+
+    if (!result || result.length === 0) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to increment selected candidate counter",
+        error: "INCREMENT_FAILED",
+      });
+      return;
+    }
+
+    const updatedUser = result[0];
+
+    console.debug(
+      `[SUCCESS] Incremented selected_candidate for ${normalizedEmail}. New count: ${updatedUser.selected_candidate}`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Selected candidate count incremented successfully",
+      email: updatedUser.email,
+      selected_candidate: updatedUser.selected_candidate,
+      filesUploaded: updatedUser.filesUploaded,
+      batch_analysis: updatedUser.batch_analysis,
+      compare_resumes: updatedUser.compare_resumes,
+      incrementedBy: count,
+      limit: SELECTED_CANDIDATE_LIMIT,
+      remaining: Math.max(
+        0,
+        SELECTED_CANDIDATE_LIMIT - (updatedUser.selected_candidate || 0)
+      ),
+    });
+  } catch (error) {
+    console.error("Increment selected candidate error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to increment selected candidate count",
       error: "SERVER_ERROR",
       details:
         config.nodeEnv === "development" ? (error as Error).message : undefined,

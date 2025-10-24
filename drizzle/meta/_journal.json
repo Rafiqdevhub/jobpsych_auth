@@ -43,6 +43,13 @@
       "when": 1729483200000,
       "tag": "0005_add_password_reset",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1761276031677,
+      "tag": "0006_glossy_the_santerians",
+      "breakpoints": true
     }
   ]
 }

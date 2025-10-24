@@ -7,6 +7,7 @@ import {
   incrementCompareResumes,
   getFeatureUsage,
   incrementCounter,
+  incrementSelectedCandidate,
 } from "../controllers/rateLimitController";
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.get("/user-uploads/:email", getUserUploads);
 router.post("/increment-upload", incrementUpload);
 router.post("/increment-batch-analysis", incrementBatchAnalysis);
 router.post("/increment-compare-resumes", incrementCompareResumes);
+router.post("/increment-selected-candidate", incrementSelectedCandidate);
 router.get("/feature-usage/:email", getFeatureUsage);
 router.get("/auth/upload-stats", getUploadStats);
 router.post("/auth/increment-counter", incrementCounter);
