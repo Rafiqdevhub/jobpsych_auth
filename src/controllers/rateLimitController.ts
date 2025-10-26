@@ -569,6 +569,7 @@ export const getFeatureUsage = async (
         filesUploaded: users.filesUploaded,
         batch_analysis: users.batch_analysis,
         compare_resumes: users.compare_resumes,
+        selected_candidate: users.selected_candidate,
         name: users.name,
       })
       .from(users)
@@ -596,6 +597,7 @@ export const getFeatureUsage = async (
         filesUploaded: user.filesUploaded || 0,
         batch_analysis: user.batch_analysis || 0,
         compare_resumes: user.compare_resumes || 0,
+        selected_candidate: user.selected_candidate || 0,
       },
       message: "Feature usage statistics retrieved successfully",
     });

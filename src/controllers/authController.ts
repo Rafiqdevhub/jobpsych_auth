@@ -21,8 +21,6 @@ import {
   AuthResponse,
   ChangePasswordRequest,
   UpdateProfileRequest,
-  ForgotPasswordRequest,
-  ResetPasswordWithTokenRequest,
 } from "../types/auth";
 import {
   sendVerificationEmail,
@@ -127,6 +125,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           filesUploaded: users.filesUploaded,
           batch_analysis: users.batch_analysis,
           compare_resumes: users.compare_resumes,
+          selected_candidate: users.selected_candidate,
         });
     } catch (dbError: any) {
       console.error("Database error during registration:", dbError);
@@ -282,6 +281,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           filesUploaded: user.filesUploaded,
           batch_analysis: user.batch_analysis,
           compare_resumes: user.compare_resumes,
+          selected_candidate: user.selected_candidate,
           emailVerified: user.emailVerified,
         },
       },
