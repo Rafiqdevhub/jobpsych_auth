@@ -60,6 +60,8 @@ router.get("/", (req, res) => {
         uploadStats: "GET /api/auth/upload-stats",
         incrementBatchAnalysis: "POST /api/auth/increment-batch-analysis",
         incrementCompareResumes: "POST /api/auth/increment-compare-resumes",
+        incrementSelectedCandidate:
+          "POST /api/auth/increment-selected-candidate",
         featureUsage: "GET /api/auth/feature-usage/:email",
       },
       integration: "Designed for FastAPI backend integration",
@@ -901,6 +903,8 @@ router.get("/", (req, res) => {
           incrementCount: "POST /api/auth/increment-upload",
           incrementBatchAnalysis: "POST /api/auth/increment-batch-analysis",
           incrementCompareResumes: "POST /api/auth/increment-compare-resumes",
+          incrementSelectedCandidate:
+            "POST /api/auth/increment-selected-candidate",
           featureUsage: "GET /api/auth/feature-usage/:email",
         },
       },
@@ -1015,6 +1019,8 @@ router.get("/", (req, res) => {
             "integer default 0 not null (count of batch analysis operations)",
           compare_resumes:
             "integer default 0 not null (count of resume comparisons)",
+          selected_candidate:
+            "integer default 0 not null (count of selected candidates - tracked for rate limiting)",
           emailVerified:
             "boolean default false not null (email verification status)",
           verificationToken:
@@ -1030,6 +1036,8 @@ router.get("/", (req, res) => {
             "Counts how many batch analysis operations user has performed",
           compare_resumes:
             "Counts how many resume comparison operations user has performed",
+          selected_candidate:
+            "Counts how many candidates the user has selected (limit enforced)",
           emailVerified:
             "Boolean flag indicating if user has verified their email address",
           verificationToken:
@@ -1076,6 +1084,15 @@ router.get("/", (req, res) => {
           resetCycle: "Never - accumulates indefinitely",
           useCase: "Track feature usage for premium analytics and dashboards",
         },
+        selected_candidate: {
+          description: "Number of candidates selected by the user",
+          limit: "10 selections maximum",
+          incremented:
+            "When user selects a candidate (FastAPI or frontend calls increment-selected-candidate)",
+          tracked: "Yes - used for rate limiting selected candidate actions",
+          resetCycle: "Never - accumulates until manually reset by admin",
+          useCase: "Enforce selection quota and prevent abuse",
+        },
       },
       endpoints: {
         trackUpload: {
@@ -1101,6 +1118,14 @@ router.get("/", (req, res) => {
           atomic: true,
           description:
             "Increments compare_resumes counter atomically for analytics",
+        },
+        trackSelectedCandidate: {
+          method: "POST",
+          path: "/api/auth/increment-selected-candidate",
+          usedBy: "FastAPI or frontend after user selects a candidate",
+          atomic: true,
+          description:
+            "Increments selected_candidate counter atomically and enforces selection quota",
         },
         retrieveStats: {
           method: "GET",

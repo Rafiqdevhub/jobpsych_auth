@@ -113,6 +113,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           filesUploaded: 0,
           batch_analysis: 0,
           compare_resumes: 0,
+          selected_candidate: 0,
           emailVerified: false,
           verificationToken,
           verificationExpires: verificationExpiry,
@@ -395,6 +396,7 @@ export const verifyEmail = async (
           filesUploaded: user.filesUploaded,
           batch_analysis: user.batch_analysis,
           compare_resumes: user.compare_resumes,
+          selected_candidate: user.selected_candidate,
           emailVerified: true,
         },
       },
@@ -748,6 +750,8 @@ export const getProfile = async (
         filesUploaded: users.filesUploaded,
         batch_analysis: users.batch_analysis,
         compare_resumes: users.compare_resumes,
+        selected_candidate: users.selected_candidate,
+        emailVerified: users.emailVerified,
         created_at: users.created_at,
       })
       .from(users)
@@ -777,6 +781,8 @@ export const getProfile = async (
         filesUploaded: user.filesUploaded,
         batch_analysis: user.batch_analysis,
         compare_resumes: user.compare_resumes,
+        selected_candidate: user.selected_candidate,
+        emailVerified: user.emailVerified,
         createdAt: user.created_at?.toISOString() || new Date().toISOString(),
       },
     };
@@ -1055,6 +1061,8 @@ export const updateProfile = async (
         filesUploaded: users.filesUploaded,
         batch_analysis: users.batch_analysis,
         compare_resumes: users.compare_resumes,
+        selected_candidate: users.selected_candidate,
+        emailVerified: users.emailVerified,
         updated_at: users.updated_at,
       });
 
@@ -1081,6 +1089,8 @@ export const updateProfile = async (
         filesUploaded: updatedProfile.filesUploaded,
         batch_analysis: updatedProfile.batch_analysis,
         compare_resumes: updatedProfile.compare_resumes,
+        selected_candidate: updatedProfile.selected_candidate,
+        emailVerified: updatedProfile.emailVerified,
         updatedAt:
           updatedProfile.updated_at?.toISOString() || new Date().toISOString(),
         ...(newPassword && {

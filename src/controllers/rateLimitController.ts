@@ -149,6 +149,7 @@ export const incrementCounter = async (
       filesUploaded: users.filesUploaded,
       batch_analysis: users.batch_analysis,
       compare_resumes: users.compare_resumes,
+      selected_candidates: users.selected_candidate,
     };
 
     if (fieldType === "filesUploaded") {
@@ -157,6 +158,8 @@ export const incrementCounter = async (
       updateData.batch_analysis = sql`${users.batch_analysis} + 1`;
     } else if (fieldType === "compare_resumes") {
       updateData.compare_resumes = sql`${users.compare_resumes} + 1`;
+    } else if (fieldType === "selected_candidate") {
+      updateData.selected_candidate = sql`${users.selected_candidate} + 1`;
     }
 
     // Increment the specified counter atomically
@@ -186,6 +189,7 @@ export const incrementCounter = async (
       filesUploaded: updatedUser.filesUploaded,
       batch_analysis: updatedUser.batch_analysis,
       compare_resumes: updatedUser.compare_resumes,
+      selected_candidate: updatedUser.selected_candidates,
       incrementedField: fieldType,
     });
   } catch (error) {
@@ -264,6 +268,7 @@ export const incrementUpload = async (
       filesUploaded: updatedUser.filesUploaded,
       batch_analysis: 0,
       compare_resumes: 0,
+      selected_candidate: 0,
       limit: UPLOAD_LIMIT,
       remaining: Math.max(0, UPLOAD_LIMIT - updatedUser.filesUploaded),
     });
@@ -307,6 +312,7 @@ export const getUploadStats = async (
         filesUploaded: users.filesUploaded,
         batch_analysis: users.batch_analysis,
         compare_resumes: users.compare_resumes,
+        selected_candidate: users.selected_candidate,
       })
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
@@ -332,6 +338,7 @@ export const getUploadStats = async (
         totalUploads: filesUploaded,
         batchAnalysisCount: user.batch_analysis || 0,
         compareResumesCount: user.compare_resumes || 0,
+        selectedCandidateCount: user.selected_candidate || 0,
         limit: UPLOAD_LIMIT,
         remaining: Math.max(0, UPLOAD_LIMIT - filesUploaded),
         percentage: Math.min(100, (filesUploaded / UPLOAD_LIMIT) * 100),
@@ -710,6 +717,7 @@ export const incrementSelectedCandidate = async (
         filesUploaded: users.filesUploaded,
         batch_analysis: users.batch_analysis,
         compare_resumes: users.compare_resumes,
+        selected_candidates: users.selected_candidate,
       });
 
     if (!result || result.length === 0) {
@@ -735,6 +743,7 @@ export const incrementSelectedCandidate = async (
       filesUploaded: updatedUser.filesUploaded,
       batch_analysis: updatedUser.batch_analysis,
       compare_resumes: updatedUser.compare_resumes,
+      selected_candidates: updatedUser.selected_candidate,
       incrementedBy: count,
       limit: SELECTED_CANDIDATE_LIMIT,
       remaining: Math.max(

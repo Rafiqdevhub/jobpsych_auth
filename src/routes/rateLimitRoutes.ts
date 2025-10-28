@@ -34,6 +34,7 @@ router.get("/rate-limit-info", (req, res) => {
       fastapiIntegration: true,
       batchAnalysis: true,
       compareResumes: true,
+      selectedCandidate: true,
     },
   });
 });
